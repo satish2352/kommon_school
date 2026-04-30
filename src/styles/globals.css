@@ -1,0 +1,272 @@
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Lexend Deca', system-ui, sans-serif;
+    @apply text-gray-900 bg-white antialiased;
+  }
+}
+
+/* ── Scroll Reveal System ─────────────────────────────── */
+@layer utilities {
+  /* base hidden state – applied before element enters viewport */
+  .reveal {
+    opacity: 0;
+    transition: opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.65s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+
+  /* variants */
+  .reveal-up     { transform: translateY(32px); }
+  .reveal-down   { transform: translateY(-24px); }
+  .reveal-left   { transform: translateX(-36px); }
+  .reveal-right  { transform: translateX(36px); }
+  .reveal-scale  { transform: scale(0.92); }
+  .reveal-fade   { transform: none; }
+
+  /* visible state – added by IntersectionObserver */
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* stagger delays */
+  .reveal-delay-100 { transition-delay: 100ms; }
+  .reveal-delay-150 { transition-delay: 150ms; }
+  .reveal-delay-200 { transition-delay: 200ms; }
+  .reveal-delay-250 { transition-delay: 250ms; }
+  .reveal-delay-300 { transition-delay: 300ms; }
+  .reveal-delay-400 { transition-delay: 400ms; }
+  .reveal-delay-500 { transition-delay: 500ms; }
+  .reveal-delay-600 { transition-delay: 600ms; }
+}
+
+/* ── Keyframes ────────────────────────────────────────── */
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes marquee-scroll {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ── Hero Animated Background ─────────────────────────── */
+@keyframes hero-gradient-move {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+.hero-bg-animated {
+  background: linear-gradient(135deg, #6161d5, #1E2448 30%, #2A3A6A 58%, #00127f 82%, #08081c);
+  background-size: 200% 200%;
+  animation: hero-gradient-move 14s ease-in-out infinite;
+}
+
+/* ── Unified Shine Keyframe (shared by all shine effects) ─ */
+@keyframes shine {
+  0%        { transform: translateX(-200%) skewX(-20deg); }
+  40%, 100% { transform: translateX(300%)  skewX(-20deg); }
+}
+
+/* ── Gradient CTA Button ──────────────────────────────── */
+@keyframes cta-gradient-move {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+.btn-gradient-cta {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #6161d5, #1E2448 30%, #2A3A6A 58%, #00127f 82%, #08081c);
+  background-size: 200% 200%;
+  animation: cta-gradient-move 9s ease-in-out infinite;
+}
+
+.btn-gradient-cta::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.55), transparent);
+  animation: shine 2s linear infinite;
+  pointer-events: none;
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.btn-gradient-cta:hover::after {
+  opacity: 1;
+}
+
+/* ── Unified Chip / Badge Style ───────────────────────── */
+.chip-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1.25rem;
+  border-radius: 9999px;
+  background-color: #fef9c3;
+  color: #a16207;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+/* ── Chip / Tag Shine ─────────────────────────────────── */
+.chip-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.chip-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.55), transparent);
+  animation: shine 2s linear infinite;
+  pointer-events: none;
+}
+
+/* ── Highlight Card Shine ─────────────────────────────── */
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.55), transparent);
+  animation: shine 2s linear infinite;
+  pointer-events: none;
+}
+
+/* ── Text Shine (gradient sweeps INSIDE the text) ─────── */
+.text-shine {
+  background-image: linear-gradient(
+    100deg,
+    #93c5fd 0%,
+    #93c5fd 35%,
+    #ffffff 50%,
+    #a5b4fc 65%,
+    #a5b4fc 100%
+  );
+  background-size: 250% 100%;
+  background-position: 100% 50%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: text-shine-sweep 3.5s linear infinite;
+}
+
+@keyframes text-shine-sweep {
+  0%   { background-position: 200% 50%; }
+  100% { background-position: -100% 50%; }
+}
+
+/* ── Marquee (auto-scrolling testimonials) ────────────── */
+.marquee-wrapper {
+  mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 38s linear infinite;
+}
+
+.marquee-wrapper:hover .marquee-track {
+  animation-play-state: paused;
+}
+
+/* ── Enhanced Hover Utilities ─────────────────────────── */
+@layer utilities {
+  .hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+  .hover-lift:hover {
+    @apply -translate-y-2 shadow-xl;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), 0 8px 32px rgba(99, 102, 241, 0.12);
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-8 py-3.5 rounded-full text-white font-semibold text-sm shadow-lg hover:shadow-xl hover:scale-105 hover:-translate-y-0.5 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#1A1A2E] focus:ring-offset-2;
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #6161d5, #1E2448 30%, #2A3A6A 58%, #00127f 82%, #08081c);
+    background-size: 200% 200%;
+    animation: cta-gradient-move 9s ease-in-out infinite;
+  }
+
+  .btn-primary::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(120deg, transparent, rgba(255,255,255,0.55), transparent);
+    animation: shine 2s linear infinite;
+    pointer-events: none;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+  }
+
+  .btn-primary:hover::after { opacity: 1; }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center px-8 py-3.5 rounded-full border-2 border-[#D32F2F] text-[#D32F2F] font-semibold text-sm hover:bg-[#FFEBEE] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-[#D32F2F] focus:ring-offset-2;
+  }
+
+  .btn-outline-white {
+    @apply inline-flex items-center justify-center px-8 py-3.5 rounded-full border-2 border-white text-white font-semibold text-sm hover:bg-white hover:text-[#D32F2F] transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-6;
+  }
+
+  .section-heading {
+    @apply text-4xl md:text-5xl font-bold text-gray-900 leading-tight;
+  }
+
+  .section-subheading {
+    @apply text-lg text-gray-500 mt-4 max-w-2xl mx-auto leading-relaxed;
+  }
+}

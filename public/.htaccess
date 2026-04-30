@@ -1,0 +1,34 @@
+# SPA history-API fallback — React Router handles client-side
+# routing. Send every URL that doesn't match a real file or
+# folder to index.html so the bundle loads and the router can
+# render the correct route.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # Don't rewrite real files or directories
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Everything else -> index.html
+  RewriteRule . /index.html [L]
+</IfModule>
+
+# Long-cache hashed build assets — Vite emits content-hashed
+# filenames in /assets, so they're safe to cache aggressively.
+# index.html stays uncached so new deploys are picked up
+# immediately.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(js|css|woff2?|ttf|eot|svg|png|jpg|jpeg|gif|webp|ico)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "index\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+  </FilesMatch>
+</IfModule>
+
+# Gzip compression (only applies if mod_deflate is enabled)
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json image/svg+xml
+</IfModule>

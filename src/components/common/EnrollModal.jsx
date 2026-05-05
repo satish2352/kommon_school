@@ -1,5 +1,36 @@
 import { useState, useEffect } from 'react'
 import { useEnrollModal } from '../../context/EnrollModalContext'
+import { createEnrollment } from '../../services/enrollmentApi'
+import PaymentModal from './PaymentModal'
+
+// Map user-friendly labels in the form to the backend enum values.
+const ROLE_MAP = {
+  'Student': 'STUDENT',
+  'Fresh Graduate': 'FRESH_GRADUATE',
+  'Working Professional': 'WORKING_PROFESSIONAL',
+  'Career Switcher': 'CAREER_SWITCHER',
+}
+const EDUCATION_MAP = {
+  'School': 'SCHOOL',
+  'Jr College': 'JR_COLLEGE',
+  'Undergraduate': 'UNDERGRADUATE',
+  'Graduate': 'GRADUATE',
+  'Post Graduate': 'POST_GRADUATE',
+  'Doctorate': 'DOCTORATE',
+  'Other': 'OTHER',
+}
+const READINESS_MAP = {
+  'Beginner': 'BEGINNER',
+  'Intermediate': 'INTERMEDIATE',
+  'Ready for Interview': 'READY_FOR_INTERVIEW',
+}
+const SOURCE_MAP = {
+  'Social Media': 'SOCIAL_MEDIA',
+  'College / University': 'COLLEGE',
+  'Friend / Colleague': 'FRIEND',
+  'Google Search': 'GOOGLE',
+  'Other': 'OTHER',
+}
 
 const STEPS = [
   { title: 'About You', subtitle: 'Help us understand who you are' },
@@ -45,6 +76,9 @@ export default function EnrollModal() {
   })
   const [errors, setErrors] = useState({})
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [createdEnrollment, setCreatedEnrollment] = useState(null)
+  const [paymentOpen, setPaymentOpen] = useState(false)
 
   useEffect(() => {
     if (isOpen) {
@@ -52,6 +86,9 @@ export default function EnrollModal() {
       setStep(0)
       setSubmitted(false)
       setErrors({})
+      setSubmitting(false)
+      setCreatedEnrollment(null)
+      setPaymentOpen(false)
     } else {
       document.body.style.overflow = ''
     }
@@ -74,12 +111,46 @@ export default function EnrollModal() {
     return e
   }
 
-  const next = () => {
+  const next = async () => {
     const e = validate()
     if (Object.keys(e).length > 0) { setErrors(e); return }
     setErrors({})
-    if (step < STEPS.length - 1) setStep(s => s + 1)
-    else setSubmitted(true)
+    if (step < STEPS.length - 1) {
+      setStep(s => s + 1)
+      return
+    }
+
+    // Final step — submit to backend, then open the payment modal.
+    setSubmitting(true)
+    try {
+      const payload = {
+        name: data.name.trim(),
+        email: data.email.trim(),
+        phone: data.phone.trim(),
+        role: ROLE_MAP[data.role],
+        ...(data.education ? { education: EDUCATION_MAP[data.education] } : {}),
+        ...(data.readiness ? { readiness: READINESS_MAP[data.readiness] } : {}),
+        ...(data.source ? { source: SOURCE_MAP[data.source] } : {}),
+      }
+      const resp = await createEnrollment(payload)
+      const enrolled = resp?.data ?? resp
+      setCreatedEnrollment({
+        id: enrolled.id,
+        enrollmentId: enrolled.enrollmentId,
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+      })
+      setSubmitted(true)
+      setPaymentOpen(true)
+    } catch (err) {
+      const detail = Array.isArray(err.details) && err.details.length
+        ? err.details.map(d => `${d.field}: ${d.message}`).join('; ')
+        : null
+      setErrors({ _api: detail || err.message || 'Could not submit. Please try again.' })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const back = () => { setErrors({}); setStep(s => s - 1) }
@@ -245,31 +316,46 @@ export default function EnrollModal() {
 
         {/* Footer */}
         {!submitted && (
-          <div className="sticky bottom-0 bg-white rounded-b-3xl px-6 py-4 border-t border-gray-100 flex items-center justify-between gap-3">
-            {step > 0 ? (
-              <button onClick={back} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-                Back
-              </button>
-            ) : (
-              <span />
+          <div className="sticky bottom-0 bg-white rounded-b-3xl px-6 py-4 border-t border-gray-100 flex flex-col gap-3">
+            {errors._api && (
+              <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs">
+                {errors._api}
+              </div>
             )}
-            <button
-              onClick={next}
-              className="btn-gradient-cta flex items-center gap-2 px-7 py-2.5 rounded-full text-white font-bold text-sm shadow hover:shadow-lg hover:scale-105 transition-all duration-200"
-            >
-              {step < STEPS.length - 1 ? 'Continue' : 'Submit & Enroll'}
-              {step < STEPS.length - 1 && (
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
+            <div className="flex items-center justify-between gap-3">
+              {step > 0 ? (
+                <button onClick={back} disabled={submitting} className="flex items-center gap-1.5 text-sm font-semibold text-gray-500 hover:text-gray-800 transition-colors disabled:opacity-40">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back
+                </button>
+              ) : (
+                <span />
               )}
-            </button>
+              <button
+                onClick={next}
+                disabled={submitting}
+                className="btn-gradient-cta flex items-center gap-2 px-7 py-2.5 rounded-full text-white font-bold text-sm shadow hover:shadow-lg hover:scale-105 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+              >
+                {submitting ? 'Submitting…' : (step < STEPS.length - 1 ? 'Continue' : 'Submit & Enroll')}
+                {!submitting && step < STEPS.length - 1 && (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                )}
+              </button>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Payment modal — opened after enrollment is created */}
+      <PaymentModal
+        isOpen={paymentOpen}
+        enrollment={createdEnrollment}
+        onClose={() => { setPaymentOpen(false); close() }}
+      />
     </div>
   )
 }

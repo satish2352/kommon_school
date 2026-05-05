@@ -25,3 +25,8 @@ dist-ssr
 
 # Claude Code
 .claude/
+
+# Environment
+.env
+.env.local
+.env.production

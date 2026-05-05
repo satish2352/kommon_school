@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import AOS from 'aos'
 import 'aos/dist/aos.css'
 import AppRoutes from './routes/AppRoutes'
+import { AuthProvider } from './context/AuthContext'
 
 function App() {
   useEffect(() => {
@@ -13,7 +14,11 @@ function App() {
     })
   }, [])
 
-  return <AppRoutes />
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
+  )
 }
 
 export default App

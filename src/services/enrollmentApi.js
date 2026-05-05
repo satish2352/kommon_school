@@ -14,10 +14,28 @@ const BASE_URL =
 
 /**
  * Generate a UUID v4 for idempotency keys.
- * Uses the Web Crypto API (available in all modern browsers and Node 19+).
+ * Prefers crypto.randomUUID() but falls back to getRandomValues() because
+ * randomUUID is gated on a "secure context" — i.e. it's undefined when
+ * the page is served over plain HTTP from anything other than localhost.
  */
 function generateIdempotencyKey() {
-  return crypto.randomUUID();
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+    const b = new Uint8Array(16);
+    crypto.getRandomValues(b);
+    b[6] = (b[6] & 0x0f) | 0x40; // v4
+    b[8] = (b[8] & 0x3f) | 0x80; // variant 10
+    const h = [...b].map((x) => x.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  }
+  // Last-resort non-cryptographic fallback (very old browsers).
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 /**
@@ -94,6 +112,35 @@ export async function createEnrollment(data) {
     },
     idempotencyKey,
   );
+}
+
+/**
+ * Create a Razorpay payment order on the public marketing flow.
+ * Amount + currency come from the backend env, so the client doesn't need to know pricing.
+ *
+ * @param {string} enrollmentId - internal CUID returned from createEnrollment
+ * @returns {Promise<{ success: boolean, data: { paymentId: string, razorpayOrderId: string,
+ *            amount: number, currency: string, keyId: string, enrollmentId: string } }>}
+ */
+export async function createPublicPaymentOrder(enrollmentId) {
+  return apiFetch(`/enrollments/${enrollmentId}/payment-order`, {
+    method: 'POST',
+    body: JSON.stringify({}),
+  });
+}
+
+/**
+ * Confirm a Razorpay payment from the public marketing flow.
+ *
+ * @param {string} enrollmentId - internal CUID
+ * @param {{ paymentId: string, razorpayOrderId: string, razorpayPaymentId: string,
+ *            razorpaySignature: string }} payload - returned by Razorpay checkout
+ */
+export async function verifyPublicPayment(enrollmentId, payload) {
+  return apiFetch(`/enrollments/${enrollmentId}/payment-verify`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 /**

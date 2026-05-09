@@ -1,39 +1,95 @@
 import { useState, useMemo } from 'react';
 import { useFollowUps } from '../../hooks/useFollowUps';
+import {
+  PageHeader,
+  Card,
+  Badge,
+  Table,
+  Th,
+  Td,
+  Tr,
+  Skeleton,
+  EmptyState,
+} from '../../components/admin';
 
-const STATUS_COLOR = {
-  NEW: 'bg-blue-50 text-blue-700',
-  CONTACTED: 'bg-cyan-50 text-cyan-700',
-  FOLLOW_UP: 'bg-amber-50 text-amber-700',
-  CALLBACK: 'bg-orange-50 text-orange-700',
-  PAYMENT_PENDING: 'bg-yellow-50 text-yellow-700',
-  CONVERTED: 'bg-green-50 text-green-700',
-  NOT_INTERESTED: 'bg-gray-100 text-gray-600',
-  CLOSED: 'bg-gray-100 text-gray-500',
-};
+/* ─── Status badge variant map ───────────────────────────────────────────── */
+function followUpBadgeVariant(status) {
+  const map = {
+    NEW:             'info',
+    CONTACTED:       'info',
+    FOLLOW_UP:       'warning',
+    CALLBACK:        'warning',
+    PAYMENT_PENDING: 'warning',
+    CONVERTED:       'success',
+    NOT_INTERESTED:  'neutral',
+    CLOSED:          'neutral',
+  };
+  return map[status] ?? 'neutral';
+}
+
+const STATUS_FILTERS = ['', 'NEW', 'CONTACTED', 'FOLLOW_UP', 'CALLBACK', 'CONVERTED', 'CLOSED'];
+
+/* ─── Skeleton rows ──────────────────────────────────────────────────────── */
+const HEADER_COLS = ['Enrollment', 'Name', 'Email', 'Phone', 'Status', 'Priority', 'Calls', 'Next follow-up', 'Last contact'];
+const COL_COUNT = HEADER_COLS.length;
+
+function SkeletonRows({ count = 7 }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <Tr key={i} striped={i % 2 === 1}>
+          <Td><Skeleton w="w-20" /></Td>
+          <Td><Skeleton w="w-28" /></Td>
+          <Td><Skeleton w="w-36" /></Td>
+          <Td><Skeleton w="w-20" /></Td>
+          <Td><Skeleton w="w-16" /></Td>
+          <Td><Skeleton w="w-12" /></Td>
+          <Td><Skeleton w="w-6" /></Td>
+          <Td><Skeleton w="w-24" /></Td>
+          <Td><Skeleton w="w-24" /></Td>
+        </Tr>
+      ))}
+    </>
+  );
+}
 
 export default function FollowUps() {
   const [status, setStatus] = useState('');
-  const [page, setPage] = useState(1);
-  const filters = useMemo(() => ({ page, limit: 20, status: status || undefined }), [page, status]);
+  const [page, setPage]     = useState(1);
+  const filters = useMemo(
+    () => ({ page, limit: 20, status: status || undefined }),
+    [page, status],
+  );
   const { data, loading, error } = useFollowUps(filters);
 
   const items = data?.items ?? data?.data ?? data ?? [];
   const total = data?.total ?? data?.pagination?.total ?? items.length;
+  const hasNext = items.length === 20;
+
+  const switchStatus = (s) => { setStatus(s); setPage(1); };
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold text-gray-900 mb-6">Follow-ups</h1>
+    <div className="space-y-6">
+      {/* ── Page header ───────────────────────────────────────────────────── */}
+      <PageHeader
+        title="Follow-ups"
+        subtitle="Track and manage outreach activities"
+        action={
+          <span className="text-sm text-slate-500">{total} total</span>
+        }
+      />
 
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {['', 'NEW', 'CONTACTED', 'FOLLOW_UP', 'CALLBACK', 'CONVERTED', 'CLOSED'].map((s) => (
+      {/* ── Status filter pills ───────────────────────────────────────────── */}
+      <div className="flex flex-wrap gap-2">
+        {STATUS_FILTERS.map((s) => (
           <button
             key={s || 'all'}
-            onClick={() => { setStatus(s); setPage(1); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+            type="button"
+            onClick={() => switchStatus(s)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-200 ${
               status === s
-                ? 'bg-blue-600 text-white'
-                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
             }`}
           >
             {s || 'All'}
@@ -41,72 +97,94 @@ export default function FollowUps() {
         ))}
       </div>
 
-      {loading && <div className="text-gray-500">Loading…</div>}
+      {/* ── Error state ──────────────────────────────────────────────────── */}
       {error && (
         <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
           {error.message}
         </div>
       )}
 
-      {!loading && !error && (
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <table className="min-w-full text-sm">
-            <thead className="bg-gray-50 text-gray-600 uppercase text-xs">
-              <tr>
-                <th className="px-4 py-3 text-left">Enrollment</th>
-                <th className="px-4 py-3 text-left">Status</th>
-                <th className="px-4 py-3 text-left">Priority</th>
-                <th className="px-4 py-3 text-left">Calls</th>
-                <th className="px-4 py-3 text-left">Next follow-up</th>
-                <th className="px-4 py-3 text-left">Last contact</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
-                    No follow-ups.
-                  </td>
-                </tr>
-              )}
-              {items.map((f) => (
-                <tr key={f.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-600">{f.enrollmentId ?? '—'}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs ${STATUS_COLOR[f.status] ?? 'bg-gray-100 text-gray-700'}`}>
-                      {f.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-700">{f.priority}</td>
-                  <td className="px-4 py-3 text-gray-700">{f.callAttempts ?? 0}</td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
-                    {f.nextFollowUpAt ? new Date(f.nextFollowUpAt).toLocaleString() : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-gray-500 text-xs">
-                    {f.lastContactAt ? new Date(f.lastContactAt).toLocaleString() : '—'}
-                  </td>
-                </tr>
+      {/* ── Table ────────────────────────────────────────────────────────── */}
+      <Card variant="flush">
+        <Table>
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50">
+              {HEADER_COLS.map((h) => (
+                <Th key={h}>{h}</Th>
               ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading && <SkeletonRows />}
 
-      <div className="mt-4 flex items-center justify-between text-sm text-gray-500">
+            {!loading && !error && items.length === 0 && (
+              <EmptyState
+                colSpan={COL_COUNT}
+                icon={
+                  <svg className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L8.5 10.5a11.037 11.037 0 004.999 5l1.113-1.724a1 1 0 011.21-.502l4.493 1.498A1 1 0 0121 15.72V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                }
+                title={!!status || page > 1 ? 'No follow-ups match the current filter' : 'No follow-ups yet'}
+                description={!!status || page > 1 ? 'Try a different status filter.' : 'Follow-ups will appear here as enrollments are processed.'}
+              />
+            )}
+
+            {!loading && !error && items.map((f, idx) => (
+              <Tr key={f.id} striped={idx % 2 === 1}>
+                <Td className="font-mono text-xs text-slate-500">
+                  {f.enrollment?.enrollmentId ?? f.enrollmentId ?? '—'}
+                </Td>
+                <Td className="text-slate-900 font-medium">
+                  {f.enrollment?.fullName ?? '—'}
+                </Td>
+                <Td className="text-slate-600">
+                  {f.enrollment?.email ?? '—'}
+                </Td>
+                <Td className="text-slate-600">
+                  {f.enrollment?.phone ?? '—'}
+                </Td>
+                <Td>
+                  <Badge variant={followUpBadgeVariant(f.status)}>
+                    {f.status}
+                  </Badge>
+                </Td>
+                <Td className="text-slate-600">
+                  {f.priority ?? '—'}
+                </Td>
+                <Td className="text-slate-600">
+                  {f.callAttempts ?? 0}
+                </Td>
+                <Td className="text-slate-500 text-xs">
+                  {f.nextFollowUpAt ? new Date(f.nextFollowUpAt).toLocaleString() : '—'}
+                </Td>
+                <Td className="text-slate-500 text-xs">
+                  {f.lastContactAt ? new Date(f.lastContactAt).toLocaleString() : '—'}
+                </Td>
+              </Tr>
+            ))}
+          </tbody>
+        </Table>
+      </Card>
+
+      {/* ── Pagination ────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-500 pb-2">
         <div>{total} total</div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <button
+            type="button"
             disabled={page === 1}
             onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition-colors duration-200"
           >
             Prev
           </button>
-          <div className="px-3 py-1.5">Page {page}</div>
+          <span className="px-3 py-1.5 text-slate-600">Page {page}</span>
           <button
-            disabled={items.length < 20}
+            type="button"
+            disabled={!hasNext}
             onClick={() => setPage((p) => p + 1)}
-            className="px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-100 disabled:opacity-40"
+            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-40 transition-colors duration-200"
           >
             Next
           </button>

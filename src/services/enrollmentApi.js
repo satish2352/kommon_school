@@ -194,3 +194,20 @@ export async function getPaymentStatus(paymentId) {
     method: 'GET',
   });
 }
+
+/**
+ * Validate a promo code against the backend.
+ *
+ * Uses POST to keep the code out of access logs / referer headers.
+ * Resolves with { success: true, data: { valid: true, course: { id, nameOfCourseAsGroup, coupon } } }
+ * on success. Rejects with a structured Error (err.code === 'PROMO_CODE_INVALID') on failure.
+ *
+ * @param {string} code - promo code to validate (caller should uppercase before sending)
+ * @returns {Promise<{ success: boolean, data: { valid: boolean, course: object } }>}
+ */
+export async function validatePromoCode(code) {
+  return apiFetch('/promo-codes/validate', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  });
+}

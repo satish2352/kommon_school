@@ -13,6 +13,10 @@ import Dashboard from '../pages/admin/Dashboard'
 import Enrollments from '../pages/admin/Enrollments'
 import Payments from '../pages/admin/Payments'
 import FollowUps from '../pages/admin/FollowUps'
+import Webhooks from '../pages/admin/Webhooks'
+import Courses from '../pages/admin/Courses'
+import EducationMaster from '../pages/admin/EducationMaster'
+import DurationMaster from '../pages/admin/DurationMaster'
 import RequireAuth from '../components/auth/RequireAuth'
 import { EnrollModalProvider } from '../context/EnrollModalContext'
 import EnrollModal from '../components/common/EnrollModal'
@@ -58,6 +62,10 @@ export default function AppRoutes() {
               <Route path="enrollments" element={<Enrollments />} />
               <Route path="payments" element={<Payments />} />
               <Route path="follow-ups" element={<FollowUps />} />
+              <Route path="webhooks" element={<Webhooks />} />
+              <Route path="courses" element={<Courses />} />
+              <Route path="education-master" element={<EducationMaster />} />
+              <Route path="duration-master" element={<DurationMaster />} />
             </Route>
             <Route path="/*" element={<MainLayout />} />
           </Routes>

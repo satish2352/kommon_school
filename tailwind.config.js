@@ -4,6 +4,10 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    // Modal responsive width classes — used dynamically in src/components/admin/Modal.jsx
+    'sm:max-w-sm', 'sm:max-w-md', 'sm:max-w-lg', 'sm:max-w-xl', 'sm:max-w-2xl',
+  ],
   theme: {
     extend: {
       colors: {

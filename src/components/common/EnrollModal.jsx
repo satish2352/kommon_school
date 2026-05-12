@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useEnrollModal } from '../../context/EnrollModalContext'
-import { createEnrollment, validatePromoCode } from '../../services/enrollmentApi'
+import { createEnrollment } from '../../services/enrollmentApi'
 import { listPublic as listPublicPlans, selectForEnrollment } from '../../services/plansService'
 import PlanSelector from './PlanSelector'
 import PlanComparisonModal from './PlanComparisonModal'
@@ -78,7 +78,7 @@ export default function EnrollModal() {
   const [step, setStep] = useState(0)
   const [data, setData] = useState({
     role: '', education: '', readiness: '', name: '', email: '', phone: '',
-    source: '', promoCode: 'NEW501',
+    source: '',
   })
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
@@ -97,7 +97,7 @@ export default function EnrollModal() {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
-      // Reset all state on open — including promoCode to its pre-filled default
+      // Reset all state on open
       setStep(0)
       setPaid(false)
       setErrors({})
@@ -108,7 +108,7 @@ export default function EnrollModal() {
       setShowComparison(false)
       setData({
         role: '', education: '', readiness: '', name: '', email: '', phone: '',
-        source: '', promoCode: 'NEW501',
+        source: '',
       })
       // Pre-fetch plans so step 2 loads instantly
       setPlans([])
@@ -136,11 +136,6 @@ export default function EnrollModal() {
       else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) e.email = 'Enter a valid email address'
       if (!data.role) e.role = 'Please select who you are'
     }
-    if (step === 1) {
-      if (!data.promoCode.trim() || data.promoCode.trim().length < 2) {
-        e.promoCode = 'Promo code is required'
-      }
-    }
     if (step === 2) {
       if (!selectedPlanPricingId) {
         e._plan = 'Please select a plan to continue'
@@ -160,22 +155,9 @@ export default function EnrollModal() {
       return
     }
 
-    // Step 1 → Step 2: validate promo, submit enrollment, then show plan selector
+    // Step 1 → Step 2: submit enrollment, then show plan selector
     if (step === 1) {
       setSubmitting(true)
-
-      // Backend promo-code pre-check before creating the enrollment.
-      try {
-        await validatePromoCode(data.promoCode.trim().toUpperCase())
-      } catch (promoErr) {
-        if (promoErr.code === 'PROMO_CODE_INVALID') {
-          setErrors({ promoCode: 'Invalid promo code. Please use NEW501 if you do not have one.' })
-        } else {
-          setErrors({ _api: promoErr.message || 'Could not validate promo code. Please try again.' })
-        }
-        setSubmitting(false)
-        return
-      }
 
       try {
         const payload = {
@@ -183,7 +165,6 @@ export default function EnrollModal() {
           email: data.email.trim(),
           phone: data.phone.trim(),
           role: ROLE_MAP[data.role],
-          promoCode: data.promoCode.trim().toUpperCase(),
           ...(data.education ? { education: EDUCATION_MAP[data.education] } : {}),
           ...(data.readiness ? { readiness: READINESS_MAP[data.readiness] } : {}),
           ...(data.source ? { source: SOURCE_MAP[data.source] } : {}),
@@ -411,31 +392,6 @@ export default function EnrollModal() {
                       </div>
                     </div>
 
-                    {/* Promo Code — visually grouped card, required field */}
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                      <p className="text-sm font-semibold text-slate-700 mb-1.5">
-                        Promo Code <span className="text-red-400">*</span>
-                      </p>
-                      <input
-                        type="text"
-                        value={data.promoCode}
-                        onChange={e => {
-                          set('promoCode', e.target.value.toUpperCase().slice(0, 50))
-                          setErrors(prev => ({ ...prev, promoCode: '' }))
-                        }}
-                        placeholder="e.g. NEW501"
-                        maxLength={50}
-                        className={`w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors ${
-                          errors.promoCode ? 'border-red-300 bg-red-50' : 'border-slate-200 bg-white focus:bg-white'
-                        }`}
-                      />
-                      {errors.promoCode && (
-                        <p className="text-red-500 text-xs mt-1">{errors.promoCode}</p>
-                      )}
-                      <p className="text-xs text-slate-400 italic mt-1.5">
-                        Use Promo Code: NEW501 (for users who do not have a promo code)
-                      </p>
-                    </div>
                   </>
                 )}
 

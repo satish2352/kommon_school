@@ -1,13 +1,13 @@
 /**
- * StatCard — Dashboard KPI card.
+ * StatCard — Dashboard KPI card with gradient icon tile.
  *
- * Props:
+ * Props (unchanged):
  *   label       string
  *   value       string | number
  *   hint        string (optional)
  *   delta       number (optional) — positive = up arrow green, negative = down arrow red
- *   icon        ReactNode (optional) — rendered inside colored accent box
- *   accentClass string (optional) — Tailwind gradient classes, e.g. 'from-indigo-500 to-indigo-600'
+ *   icon        ReactNode (optional)
+ *   accentClass string (optional) — Tailwind gradient classes for icon tile
  */
 export function StatCard({
   label,
@@ -15,33 +15,55 @@ export function StatCard({
   hint,
   delta,
   icon,
-  accentClass = 'from-emerald-500 to-emerald-600',
+  accentClass = 'from-brand-500 to-brand-700',
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-shadow duration-200">
+    <div
+      className="bg-white rounded-xl border p-5 shadow-card
+        hover:shadow-card-hover transition-shadow duration-200 group"
+      style={{ borderColor: 'var(--admin-border)' }}
+    >
       <div className="flex items-start justify-between gap-3">
-        <div className="text-sm text-slate-500 leading-snug flex-1 min-w-0">{label}</div>
+        <div className="text-[13px] font-medium text-slate-500 leading-snug flex-1 min-w-0">
+          {label}
+        </div>
         {icon != null && (
           <div
-            className={`w-9 h-9 rounded-lg bg-gradient-to-br ${accentClass} flex items-center justify-center text-white text-base shrink-0`}
+            className={`w-10 h-10 rounded-lg bg-gradient-to-br ${accentClass} flex items-center justify-center text-white shrink-0`}
+            style={{ boxShadow: '0 1px 2px 0 rgb(0 0 0 / 0.05)' }}
           >
             {icon}
           </div>
         )}
       </div>
-      <div className="mt-2 text-2xl font-bold text-slate-900 tabular-nums">
+
+      <div className="mt-3 text-[26px] font-bold text-slate-900 tabular-nums tracking-tight leading-none">
         {value ?? '—'}
       </div>
+
       {(delta != null || hint) && (
-        <div className="flex items-center gap-2 mt-1 flex-wrap">
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
           {delta != null && (
             <span
-              className={`text-xs font-medium ${delta >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}
+              className={`inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full ${
+                delta >= 0
+                  ? 'bg-emerald-50 text-emerald-700'
+                  : 'bg-red-50 text-red-600'
+              }`}
             >
-              {delta >= 0 ? '▲' : '▼'} {Math.abs(delta).toFixed(0)}%
+              {delta >= 0 ? (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+                </svg>
+              ) : (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              )}
+              {Math.abs(delta).toFixed(0)}%
             </span>
           )}
-          {hint && <span className="text-xs text-slate-400">{hint}</span>}
+          {hint && <span className="text-[11px] text-slate-500">{hint}</span>}
         </div>
       )}
     </div>

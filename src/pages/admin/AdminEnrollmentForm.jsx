@@ -116,7 +116,6 @@ const EMPTY = {
   education:  '',
   readiness:  '',
   source:     '',
-  promoCode:  'NEW501',
   notes:      '',
 };
 
@@ -478,7 +477,6 @@ export default function AdminEnrollmentForm() {
         email:     data.email.trim(),
         phone:     data.phone.trim(),
         role:      ROLE_MAP[data.role],
-        promoCode: data.promoCode.trim().toUpperCase() || undefined,
         candidateType:      'INTERNAL',
         courseId:           Number(selectedCourseId),
         internalPlanId:     Number(selectedPlanId),
@@ -729,15 +727,6 @@ export default function AdminEnrollmentForm() {
               </div>
             </div>
 
-            <Input
-              label="Promo Code"
-              value={data.promoCode}
-              placeholder="NEW501"
-              maxLength={50}
-              onChange={(e) => set('promoCode', e.target.value.toUpperCase().slice(0, 50))}
-              hint="Default: NEW501"
-            />
-
             <Textarea
               label="Admin Notes"
               value={data.notes}
@@ -912,7 +901,6 @@ export default function AdminEnrollmentForm() {
                 ['Education', data.education || '—'],
                 ['Readiness', data.readiness || '—'],
                 ['Source',    data.source    || '—'],
-                ['Promo Code', data.promoCode || '—'],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="text-xs text-slate-400">{k}</dt>

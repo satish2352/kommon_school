@@ -1,305 +1,304 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
 
-const NAV_MAIN = [
+/* ── Icon set ─────────────────────────────────────────────
+ * Inline SVGs, line style, stroke-width 1.75, 18px box.
+ * Matches the visual weight of shadcn-ui / lucide icons used
+ * by the Eleganza reference sidebar.
+ */
+const iconProps = {
+  width: 18,
+  height: 18,
+  viewBox: '0 0 24 24',
+  fill: 'none',
+  stroke: 'currentColor',
+  strokeWidth: 1.75,
+  strokeLinecap: 'round',
+  strokeLinejoin: 'round',
+  'aria-hidden': true,
+};
+
+const Icon = {
+  dashboard: (
+    <svg {...iconProps}>
+      <rect x="3" y="3" width="7" height="9" rx="1.5" />
+      <rect x="14" y="3" width="7" height="5" rx="1.5" />
+      <rect x="14" y="12" width="7" height="9" rx="1.5" />
+      <rect x="3" y="16" width="7" height="5" rx="1.5" />
+    </svg>
+  ),
+  users: (
+    <svg {...iconProps}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  ),
+  userPlus: (
+    <svg {...iconProps}>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M19 8v6M22 11h-6" />
+    </svg>
+  ),
+  upload: (
+    <svg {...iconProps}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="M17 8l-5-5-5 5" />
+      <path d="M12 3v12" />
+    </svg>
+  ),
+  card: (
+    <svg {...iconProps}>
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <path d="M2 10h20M6 15h2M11 15h3" />
+    </svg>
+  ),
+  phone: (
+    <svg {...iconProps}>
+      <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+  ),
+  webhook: (
+    <svg {...iconProps}>
+      <path d="M18 16.98h-5.99c-1.1 0-1.95.94-2.48 1.9A4 4 0 0 1 2 17c.01-.7.2-1.4.57-2" />
+      <path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1A4 4 0 1 1 15.66 9" />
+      <path d="m12 7 3.13 5.73C15.66 13.7 16.9 14 18 14a4 4 0 1 1-4 4" />
+    </svg>
+  ),
+  layers: (
+    <svg {...iconProps}>
+      <path d="M12 2 2 7l10 5 10-5-10-5z" />
+      <path d="m2 17 10 5 10-5" />
+      <path d="m2 12 10 5 10-5" />
+    </svg>
+  ),
+  fileText: (
+    <svg {...iconProps}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6M9 13h6M9 17h6" />
+    </svg>
+  ),
+  plus: (
+    <svg {...iconProps}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  ),
+  book: (
+    <svg {...iconProps}>
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  ),
+  clock: (
+    <svg {...iconProps}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="M12 6v6l4 2" />
+    </svg>
+  ),
+  logout: (
+    <svg {...iconProps}>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="m16 17 5-5-5-5M21 12H9" />
+    </svg>
+  ),
+  close: (
+    <svg {...iconProps}>
+      <path d="M18 6 6 18M6 6l12 12" />
+    </svg>
+  ),
+};
+
+/* ── Nav model ────────────────────────────────────────────
+ * Flat groups, each item is a direct route. No collapsible
+ * carets — mirrors the reference's `SidebarGroup` +
+ * `SidebarGroupLabel` + `SidebarMenu` pattern.
+ *
+ * Every existing route is preserved exactly.
+ */
+const NAV_SECTIONS = [
   {
-    to: '/admin',
-    end: true,
-    label: 'Dashboard',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-      </svg>
-    ),
+    items: [
+      { to: '/admin', end: true, label: 'Dashboard', icon: Icon.dashboard },
+    ],
   },
   {
-    to: '/admin/payments',
-    label: 'Payments',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-      </svg>
-    ),
+    label: 'Operations',
+    items: [
+      { to: '/admin/enrollments', end: true, label: 'Enrollments', icon: Icon.users },
+      { to: '/admin/enrollments/new', label: 'New Enrollment', icon: Icon.userPlus },
+      { to: '/admin/enrollments/bulk', label: 'Bulk Upload (CSV)', icon: Icon.upload },
+      { to: '/admin/payments', label: 'Payments', icon: Icon.card },
+      { to: '/admin/follow-ups', label: 'Follow-ups', icon: Icon.phone },
+      { to: '/admin/webhooks', label: 'Webhooks', icon: Icon.webhook },
+    ],
   },
   {
-    to: '/admin/follow-ups',
-    label: 'Follow-ups',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L8.5 10.5a11.037 11.037 0 004.999 5l1.113-1.724a1 1 0 011.21-.502l4.493 1.498A1 1 0 0121 15.72V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-      </svg>
-    ),
-  },
-  {
-    to: '/admin/webhooks',
-    label: 'Webhooks',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-      </svg>
-    ),
-  },
-  {
-    to: '/admin/plans',
     label: 'Plans',
-    icon: (
-      <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-      </svg>
-    ),
+    subgroups: [
+      {
+        label: 'Internal',
+        items: [
+          { to: '/admin/internal-plans', end: true, label: 'Internal Plans', icon: Icon.fileText },
+          { to: '/admin/courses', label: 'Courses', icon: Icon.book },
+          { to: '/admin/duration-master', label: 'Duration Master', icon: Icon.clock },
+        ],
+      },
+      {
+        label: 'External Plan',
+        items: [
+          { to: '/admin/plans', label: 'Plans', icon: Icon.layers },
+        ],
+      },
+    ],
   },
 ];
 
-const ENROLLMENTS_GROUP = {
-  label: 'Enrollments',
-  basePaths: ['/admin/enrollments'],
-  icon: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5m6 0v-2a2 2 0 00-2-2H9a2 2 0 00-2 2v2m6 0H9" />
-    </svg>
-  ),
-  children: [
-    {
-      to: '/admin/enrollments',
-      end: true,
-      label: 'All Enrollments',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
-        </svg>
-      ),
-    },
-    {
-      to: '/admin/enrollments/new',
-      label: 'New Enrollment',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
-      ),
-    },
-    {
-      to: '/admin/enrollments/bulk',
-      label: 'Bulk Upload (CSV)',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5 5 5M12 5v12" />
-        </svg>
-      ),
-    },
-  ],
-};
+/* ── Group heading (uppercase, low-opacity) ─────────────── */
+function GroupLabel({ children }) {
+  return (
+    <div className="px-3 pt-4 pb-1.5 first:pt-1">
+      <span
+        className="text-[11px] font-semibold uppercase tracking-[0.08em]"
+        style={{ color: 'var(--admin-sidebar-fg-muted)' }}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
 
-const INTERNAL_PLANS_GROUP = {
-  label: 'Internal Plans',
-  basePaths: ['/admin/internal-plans'],
-  icon: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-    </svg>
-  ),
-  children: [
-    {
-      to: '/admin/internal-plans',
-      end: true,
-      label: 'All Internal Plans',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h10M4 18h10" />
-        </svg>
-      ),
-    },
-    {
-      to: '/admin/internal-plans/new',
-      label: 'Add Internal Plan',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-        </svg>
-      ),
-    },
-  ],
-};
+/* ── Subgroup heading — slightly indented, smaller ──────── */
+function SubGroupLabel({ children }) {
+  return (
+    <div className="px-4 pt-2.5 pb-1">
+      <span
+        className="text-[10px] font-semibold uppercase tracking-[0.1em]"
+        style={{ color: 'var(--admin-sidebar-fg-muted)' }}
+      >
+        {children}
+      </span>
+    </div>
+  );
+}
 
-const COURSES_GROUP = {
-  label: 'Courses',
-  basePaths: ['/admin/courses', '/admin/duration-master'],
-  icon: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-    </svg>
-  ),
-  children: [
-    {
-      to: '/admin/courses',
-      label: 'Courses',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-        </svg>
-      ),
-    },
-    {
-      to: '/admin/duration-master',
-      label: 'Duration Master',
-      icon: (
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      ),
-    },
-  ],
-};
-
-function NavItem({ item, onLinkClick, nested = false }) {
+/* ── Single nav item ────────────────────────────────────── */
+function NavItem({ item, onLinkClick }) {
   return (
     <NavLink
       to={item.to}
       end={item.end}
       onClick={onLinkClick}
       className={({ isActive }) =>
-        `flex items-center gap-3 ${nested ? 'pl-9 pr-3' : 'px-3'} py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 relative ${
-          isActive
-            ? 'bg-white/10 text-white before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-5 before:w-0.5 before:rounded-full before:bg-emerald-500'
-            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+        `group flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 admin-nav-item ${
+          isActive ? 'admin-nav-active' : ''
         }`
       }
     >
-      {({ isActive }) => (
-        <>
-          <span className={`shrink-0 ${isActive ? 'text-emerald-400' : 'text-slate-500'}`}>
-            {item.icon}
-          </span>
-          <span className="truncate">{item.label}</span>
-        </>
-      )}
+      <span className="shrink-0">{item.icon}</span>
+      <span className="truncate">{item.label}</span>
     </NavLink>
   );
 }
 
-function NavGroup({ group, onLinkClick }) {
-  const location = useLocation();
-  const isChildActive = useMemo(
-    () => group.basePaths.some((p) => location.pathname === p || location.pathname.startsWith(p + '/')),
-    [location.pathname, group.basePaths],
-  );
-  const [open, setOpen] = useState(isChildActive);
-
-  // Auto-open whenever the user navigates into one of the children
-  useEffect(() => {
-    if (isChildActive) setOpen(true);
-  }, [isChildActive]);
-
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors duration-150 ${
-          isChildActive
-            ? 'text-white'
-            : 'text-slate-400 hover:bg-white/5 hover:text-white'
-        }`}
-      >
-        <span className={`shrink-0 ${isChildActive ? 'text-emerald-400' : 'text-slate-500'}`}>
-          {group.icon}
-        </span>
-        <span className="truncate flex-1 text-left">{group.label}</span>
-        <svg
-          className={`w-4 h-4 shrink-0 text-slate-500 transition-transform duration-200 ${open ? 'rotate-90' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
-      <div
-        className={`overflow-hidden transition-[max-height,opacity] duration-200 ease-in-out ${
-          open ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
-        <div className="space-y-0.5 mt-0.5">
-          {group.children.map((item) => (
-            <NavItem key={item.to} item={item} onLinkClick={onLinkClick} nested />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Sidebar content — shared between permanent desktop sidebar and mobile drawer.
- */
+/* ── Sidebar content (shared desktop + mobile) ─────────── */
 function SidebarContent({ onLinkClick, user, onLogout }) {
+  const initial = (user?.email?.[0] ?? 'A').toUpperCase();
+  const role = user?.role ?? 'Admin';
   return (
     <div className="flex flex-col h-full">
-      {/* Logo / brand */}
-      <div className="px-5 py-5 border-b border-white/10 shrink-0">
-        <div className="flex items-center gap-2.5">
-          {/* Wordmark icon */}
-          <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center shrink-0">
-            <span className="text-white text-sm font-bold leading-none">K</span>
-          </div>
-          <div>
-            <div className="text-base font-bold text-white tracking-tight leading-tight">Kommon</div>
-            <div className="text-[10px] text-slate-400 leading-tight uppercase tracking-widest">Admin Console</div>
-          </div>
+      {/* Brand — clean wordmark, mint accent, matches reference */}
+      <div className="px-5 h-[60px] flex items-center shrink-0">
+        <div className="flex items-baseline gap-0.5 leading-none">
+          <span
+            className="text-[17px] font-bold tracking-tight"
+            style={{ color: 'var(--admin-sidebar-mint)' }}
+          >
+            Kommon
+          </span>
+          <span
+            className="text-[13px] font-semibold tracking-tight"
+            style={{ color: 'var(--admin-text)' }}
+          >
+            School
+          </span>
         </div>
       </div>
 
+      {/* Divider under brand */}
+      <div className="h-px shrink-0" style={{ background: 'var(--admin-sidebar-border)' }} />
+
       {/* Nav */}
-      <nav className="flex-1 px-3 py-3 overflow-y-auto">
-        {/* Dashboard */}
-        <div className="space-y-0.5">
-          <NavItem item={NAV_MAIN[0]} onLinkClick={onLinkClick} />
-        </div>
+      <nav className="flex-1 px-2 py-3 overflow-y-auto">
+        {NAV_SECTIONS.map((section, idx) => (
+          <div key={section.label ?? `section-${idx}`}>
+            {section.label && <GroupLabel>{section.label}</GroupLabel>}
 
-        {/* Enrollments group — list / new / bulk */}
-        <div className="mt-1">
-          <NavGroup group={ENROLLMENTS_GROUP} onLinkClick={onLinkClick} />
-        </div>
+            {/* Flat items (legacy sections without subgroups) */}
+            {section.items && (
+              <div className="space-y-0.5 px-1">
+                {section.items.map((item) => (
+                  <NavItem key={item.to} item={item} onLinkClick={onLinkClick} />
+                ))}
+              </div>
+            )}
 
-        {/* Remaining top-level nav (Payments, Follow-ups, Webhooks, Plans) */}
-        <div className="mt-1 space-y-0.5">
-          {NAV_MAIN.slice(1).map((item) => (
-            <NavItem key={item.to} item={item} onLinkClick={onLinkClick} />
-          ))}
-        </div>
-
-        {/* Internal Plans group */}
-        <div className="mt-2">
-          <NavGroup group={INTERNAL_PLANS_GROUP} onLinkClick={onLinkClick} />
-        </div>
-
-        {/* Courses group — collapsible parent containing the master pages */}
-        <div className="mt-2">
-          <NavGroup group={COURSES_GROUP} onLinkClick={onLinkClick} />
-        </div>
+            {/* Nested subgroups */}
+            {section.subgroups && section.subgroups.map((sub) => (
+              <div key={sub.label}>
+                <SubGroupLabel>{sub.label}</SubGroupLabel>
+                <div className="space-y-0.5 px-1">
+                  {sub.items.map((item) => (
+                    <NavItem key={item.to} item={item} onLinkClick={onLinkClick} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ))}
       </nav>
 
-      {/* User footer */}
-      <div className="px-3 py-3 border-t border-white/10 space-y-1 shrink-0">
-        <div className="px-3 py-1.5 rounded-lg bg-white/5 mb-1">
-          <div className="text-xs font-semibold text-white truncate">{user?.email}</div>
-          <div className="text-[10px] text-slate-400 uppercase tracking-wide mt-0.5">{user?.role}</div>
+      {/* Footer — divider + user row + sign-out */}
+      <div className="h-px shrink-0" style={{ background: 'var(--admin-sidebar-border)' }} />
+      <div className="px-3 py-3 shrink-0">
+        <div className="flex items-center gap-2.5 px-2 py-2 rounded-md">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-[12px] font-semibold"
+            style={{
+              background: 'var(--admin-accent-soft)',
+              border: '1px solid var(--admin-sidebar-border)',
+              color: 'var(--admin-sidebar-mint)',
+            }}
+          >
+            {initial}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div
+              className="text-[12.5px] font-semibold truncate leading-tight"
+              style={{ color: 'var(--admin-text)' }}
+            >
+              {user?.email ?? 'admin@kommon'}
+            </div>
+            <div
+              className="text-[10.5px] uppercase tracking-[0.08em] mt-0.5 leading-tight"
+              style={{ color: 'var(--admin-sidebar-fg-muted)' }}
+            >
+              {role}
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="shrink-0 p-1.5 rounded-md admin-nav-item"
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            {Icon.logout}
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-red-900/30 hover:text-red-300 transition-colors duration-150"
-        >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Sign out
-        </button>
       </div>
     </div>
   );
@@ -311,12 +310,10 @@ export default function AdminLayout() {
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Close drawer whenever the route changes
   useEffect(() => {
     setDrawerOpen(false);
   }, [location.pathname]);
 
-  // Lock body scroll when mobile drawer is open
   useEffect(() => {
     if (drawerOpen) {
       document.body.style.overflow = 'hidden';
@@ -334,37 +331,40 @@ export default function AdminLayout() {
   };
 
   return (
-    // admin-shell scopes Inter font + theme variables to the admin panel only.
-    // h-screen + overflow-hidden so the outer shell never scrolls.
-    // The sidebar inherits full height as a flex child; only <main> scrolls.
-    <div className="admin-shell h-screen bg-[#F8FAFC] flex overflow-hidden">
+    <div className="admin-shell h-screen flex overflow-hidden" style={{ background: 'var(--admin-bg)' }}>
 
-      {/* ── Desktop / tablet permanent sidebar ─────────────────────────────── */}
-      <aside className="hidden md:flex md:w-[220px] lg:w-[260px] shrink-0 bg-[#0F172A] flex-col">
+      {/* ── Desktop permanent sidebar ─── */}
+      <aside
+        className="hidden md:flex md:w-[240px] lg:w-[256px] shrink-0 flex-col"
+        style={{
+          background: 'var(--admin-sidebar)',
+          borderRight: '1px solid var(--admin-sidebar-border)',
+        }}
+      >
         <SidebarContent user={user} onLogout={onLogout} onLinkClick={undefined} />
       </aside>
 
-      {/* ── Mobile drawer backdrop ─────────────────────────────────────────── */}
+      {/* ── Mobile drawer backdrop ─── */}
       {drawerOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-900/60 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-slate-900/70 backdrop-blur-sm md:hidden"
           onClick={() => setDrawerOpen(false)}
           aria-hidden="true"
         />
       )}
 
-      {/* ── Mobile slide-in drawer ──────────────────────────────────────────── */}
+      {/* ── Mobile slide-in drawer ─── */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-[#0F172A] flex flex-col transform transition-transform duration-300 ease-in-out md:hidden ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 flex flex-col transform transition-transform duration-300 ease-in-out md:hidden ${
           drawerOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
+        style={{ background: 'var(--admin-sidebar)' }}
         aria-label="Mobile navigation"
       >
-        {/* Close button inside drawer */}
         <button
           type="button"
           onClick={() => setDrawerOpen(false)}
-          className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors duration-150"
+          className="absolute top-4 right-4 p-1.5 rounded-lg admin-nav-item"
           aria-label="Close navigation"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -378,15 +378,86 @@ export default function AdminLayout() {
         />
       </div>
 
-      {/* ── Main content column ────────────────────────────────────────────── */}
+      {/* ── Main content column ─── */}
       <div className="flex-1 flex flex-col min-w-0">
 
-        {/* Mobile top header bar */}
-        <header className="md:hidden flex items-center justify-between px-4 py-4 bg-white border-b border-slate-200 shrink-0">
+        {/* Desktop top header bar — glass with subtle border */}
+        <header
+          className="hidden md:flex items-center justify-between px-6 h-14 shrink-0"
+          style={{
+            background: 'rgba(255,255,255,0.85)',
+            backdropFilter: 'saturate(180%) blur(14px)',
+            WebkitBackdropFilter: 'saturate(180%) blur(14px)',
+            borderBottom: '1px solid var(--admin-border)',
+          }}
+        >
+          {/* Left: page breadcrumb derived from route */}
+          <div className="flex items-center gap-2 text-[13px]">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ color: 'var(--admin-accent)' }}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span className="text-slate-300">/</span>
+            <span className="font-medium text-slate-700">
+              {location.pathname === '/admin' ? 'Dashboard' : location.pathname.replace('/admin/', '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+            </span>
+          </div>
+
+          {/* Right: search + bell + user */}
+          <div className="flex items-center gap-2.5">
+            {/* Search (static) */}
+            <div className="relative hidden lg:block">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search..."
+                className="pl-9 pr-4 py-1.5 rounded-md border text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all duration-200 w-56"
+                style={{ background: '#F8F9FA', borderColor: 'var(--admin-border)' }}
+                readOnly
+              />
+            </div>
+
+            {/* Bell */}
+            <button
+              type="button"
+              className="relative p-2 rounded-md text-slate-500 hover:text-brand-700 hover:bg-slate-100 transition-all duration-150"
+              title="Notifications"
+              aria-label="Notifications"
+            >
+              <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+              </svg>
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-rose-500" />
+            </button>
+
+            {/* User chip */}
+            <div className="flex items-center gap-2.5 pl-3 ml-1" style={{ borderLeft: '1px solid var(--admin-border)' }}>
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)' }}
+              >
+                <span className="text-white text-xs font-bold">
+                  {user?.email?.[0]?.toUpperCase() ?? 'A'}
+                </span>
+              </div>
+              <div className="hidden lg:block leading-tight">
+                <div className="text-[13px] font-semibold text-slate-800">{user?.email?.split('@')[0]}</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">{user?.role}</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Mobile top bar */}
+        <header
+          className="md:hidden flex items-center justify-between px-4 h-14 shrink-0"
+          style={{ background: 'rgba(255,255,255,0.95)', borderBottom: '1px solid var(--admin-border)' }}
+        >
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
-            className="p-2 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors duration-150"
+            className="p-2 rounded-md text-slate-500 hover:text-brand-700 hover:bg-slate-100 transition-colors duration-150"
             aria-label="Open navigation"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -394,15 +465,18 @@ export default function AdminLayout() {
             </svg>
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-emerald-600 flex items-center justify-center">
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)' }}
+            >
               <span className="text-white text-xs font-bold leading-none">K</span>
             </div>
-            <span className="text-base font-bold text-slate-900 tracking-tight">Kommon</span>
+            <span className="text-base font-semibold text-slate-900 tracking-tight">Kommon</span>
           </div>
           <button
             type="button"
             onClick={onLogout}
-            className="p-2 rounded-lg text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
+            className="p-2 rounded-md text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors duration-150"
             aria-label="Sign out"
             title={`Sign out (${user?.email ?? ''})`}
           >
@@ -412,7 +486,7 @@ export default function AdminLayout() {
           </button>
         </header>
 
-        {/* overflow-y-auto makes this the scroll container, not the document */}
+        {/* Page scroll container */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden">
           <div className="px-4 py-6 md:px-6 md:py-8 lg:px-8 max-w-7xl mx-auto">
             <Outlet />
@@ -420,8 +494,25 @@ export default function AdminLayout() {
         </main>
       </div>
 
-      {/* Single Toaster instance for all admin pages */}
-      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#fff',
+            color: '#111827',
+            boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)',
+            borderRadius: '10px',
+            border: '1px solid #E5E7EB',
+            fontSize: '13px',
+            fontWeight: 500,
+            fontFamily: 'Inter, system-ui, sans-serif',
+          },
+          success: {
+            iconTheme: { primary: '#2563EB', secondary: '#fff' },
+          },
+        }}
+      />
     </div>
   );
 }

@@ -465,7 +465,7 @@ export default function Webhooks() {
             onClick={() => handleFilterChange(val)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 ${
               statusFilter === val
-                ? 'bg-indigo-600 text-white'
+                ? 'bg-brand-600 text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >

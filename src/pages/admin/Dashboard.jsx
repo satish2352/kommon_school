@@ -1,5 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 import {
   useAdminDashboard,
   useAdminEnrollments,
@@ -35,7 +37,7 @@ const last7Days = () => {
 
 /* ─── Status colour maps ─────────────────────────────────────────────────── */
 const FOLLOW_UP_COLORS = {
-  NEW: '#4f46e5',
+  NEW: '#2563EB',
   CONTACTED: '#06b6d4',
   FOLLOW_UP: '#f59e0b',
   CALLBACK: '#f97316',
@@ -49,35 +51,35 @@ const PAYMENT_COLORS = {
   SUCCESS: '#10b981',
   FAILED: '#ef4444',
   PENDING: '#f59e0b',
-  IN_PROGRESS: '#4f46e5',
+  IN_PROGRESS: '#2563EB',
   CREATED: '#94a3b8',
   EXPIRED: '#64748b',
   REFUNDED: '#a855f7',
-  PARTIAL: '#6366f1',
+  PARTIAL: '#1D4ED8',
 };
 
 /* ─── Skeleton helpers ───────────────────────────────────────────────────── */
 function StatCardSkeleton() {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <div className="flex items-start justify-between mb-2">
+    <div className="bg-white rounded-xl border p-5 shadow-card" style={{ borderColor: 'var(--admin-border, #E5E7EB)' }}>
+      <div className="flex items-start justify-between mb-3">
         <Skeleton w="w-24" h="h-3" />
-        <Skeleton w="w-9" h="h-9" className="rounded-lg shrink-0" />
+        <Skeleton w="w-10" h="h-10" className="rounded-lg shrink-0" />
       </div>
-      <Skeleton w="w-16" h="h-7" className="mt-2" />
-      <Skeleton w="w-20" h="h-3" className="mt-2" />
+      <Skeleton w="w-20" h="h-7" className="mt-3" />
+      <Skeleton w="w-24" h="h-3" className="mt-2" />
     </div>
   );
 }
 
 function ChartSkeleton() {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
+    <div className="bg-white rounded-xl border p-5 shadow-card" style={{ borderColor: 'var(--admin-border, #E5E7EB)' }}>
       <div className="flex items-center justify-between mb-4">
         <Skeleton w="w-32" h="h-4" />
         <Skeleton w="w-12" h="h-3" />
       </div>
-      <Skeleton w="w-full" h="h-[120px]" className="rounded-lg" />
+      <Skeleton w="w-full" h="h-[120px]" className="rounded-xl" />
       <div className="flex justify-between mt-2">
         <Skeleton w="w-4" h="h-3" />
         <Skeleton w="w-16" h="h-3" />
@@ -88,7 +90,7 @@ function ChartSkeleton() {
 
 /* ─── Sub-components ─────────────────────────────────────────────────────── */
 
-function MiniBarChart({ data, format = (v) => v, color = '#4f46e5', height = 120 }) {
+function MiniBarChart({ data, format = (v) => v, color = '#2563EB', height = 120 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   const width = 100;
   const barW = width / data.length - 2;
@@ -204,8 +206,8 @@ function Donut({ slices, size = 140 }) {
 function StatusPill({ status, color }) {
   return (
     <span
-      className="inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold"
-      style={{ background: `${color}18`, color }}
+      className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium leading-4"
+      style={{ background: `${color}1A`, color }}
     >
       {status}
     </span>
@@ -215,6 +217,10 @@ function StatusPill({ status, color }) {
 /* ─── Dashboard page ─────────────────────────────────────────────────────── */
 
 export default function Dashboard() {
+  useEffect(() => {
+    AOS.init({ duration: 500, once: true, easing: 'ease-out' });
+  }, []);
+
   const summary = useAdminDashboard();
   const recentEnrollments = useAdminEnrollments({ page: 1, limit: 50 });
   const recentPayments = useAdminPayments({ page: 1, limit: 50 });
@@ -321,14 +327,15 @@ export default function Dashboard() {
           <>
             <Link
               to="/admin/enrollments"
-              className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 transition-colors duration-200"
+              className="inline-flex items-center justify-center h-9 px-4 rounded-[0.625rem] bg-brand-500 text-white text-[13px] font-medium shadow-sm hover:bg-brand-600 hover:shadow-md transition-all duration-150"
             >
               View enrollments
             </Link>
             <button
               type="button"
               onClick={refreshAll}
-              className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm font-medium hover:bg-slate-50 transition-colors duration-200"
+              className="inline-flex items-center justify-center h-9 px-4 rounded-[0.625rem] border bg-white text-slate-700 text-[13px] font-medium hover:bg-slate-50 hover:text-slate-900 transition-colors duration-150"
+              style={{ borderColor: 'var(--admin-border, #E5E7EB)' }}
             >
               ↻ Refresh
             </button>
@@ -350,70 +357,82 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatCard
-            label="Today's enrollments"
-            value={fmtNum(summary.data?.today?.enrollments)}
-            hint="UTC day"
-            accentClass="from-emerald-500 to-emerald-600"
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5m6 0v-2a2 2 0 00-2-2H9a2 2 0 00-2 2v2m6 0H9" />
-              </svg>
-            }
-          />
-          <StatCard
-            label="Today's revenue"
-            value={inr(summary.data?.today?.revenuePaise)}
-            hint="UTC day"
-            accentClass="from-emerald-500 to-emerald-600"
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-          />
-          <StatCard
-            label="Pending payments"
-            value={fmtNum(summary.data?.pending?.payments)}
-            accentClass="from-amber-500 to-orange-500"
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-          />
-          <StatCard
-            label="Pending follow-ups"
-            value={fmtNum(summary.data?.pending?.followUps)}
-            accentClass="from-rose-500 to-pink-600"
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L8.5 10.5a11.037 11.037 0 004.999 5l1.113-1.724a1 1 0 011.21-.502l4.493 1.498A1 1 0 0121 15.72V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-              </svg>
-            }
-          />
-          <StatCard
-            label="Revenue (7d)"
-            value={inr(totalRevenue7d)}
-            hint="from recent payments"
-            accentClass="from-violet-500 to-purple-600"
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            }
-          />
-          <StatCard
-            label="Conversion rate"
-            value={`${conversionRate}%`}
-            hint={`${successCount} paid / ${enrollItems.length} recent`}
-            accentClass="from-slate-500 to-slate-700"
-            icon={
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            }
-          />
+          <div data-aos="fade-up" data-aos-delay="0">
+            <StatCard
+              label="Today's enrollments"
+              value={fmtNum(summary.data?.today?.enrollments)}
+              hint="UTC day"
+              accentClass="from-brand-500 to-brand-700"
+              icon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5m6 0v-2a2 2 0 00-2-2H9a2 2 0 00-2 2v2m6 0H9" />
+                </svg>
+              }
+            />
+          </div>
+          <div data-aos="fade-up" data-aos-delay="60">
+            <StatCard
+              label="Today's revenue"
+              value={inr(summary.data?.today?.revenuePaise)}
+              hint="UTC day"
+              accentClass="from-emerald-500 to-emerald-700"
+              icon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+            />
+          </div>
+          <div data-aos="fade-up" data-aos-delay="120">
+            <StatCard
+              label="Pending payments"
+              value={fmtNum(summary.data?.pending?.payments)}
+              accentClass="from-amber-500 to-orange-500"
+              icon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+            />
+          </div>
+          <div data-aos="fade-up" data-aos-delay="180">
+            <StatCard
+              label="Pending follow-ups"
+              value={fmtNum(summary.data?.pending?.followUps)}
+              accentClass="from-rose-500 to-pink-600"
+              icon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21L8.5 10.5a11.037 11.037 0 004.999 5l1.113-1.724a1 1 0 011.21-.502l4.493 1.498A1 1 0 0121 15.72V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+              }
+            />
+          </div>
+          <div data-aos="fade-up" data-aos-delay="240">
+            <StatCard
+              label="Revenue (7d)"
+              value={inr(totalRevenue7d)}
+              hint="from recent payments"
+              accentClass="from-violet-500 to-purple-600"
+              icon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                </svg>
+              }
+            />
+          </div>
+          <div data-aos="fade-up" data-aos-delay="300">
+            <StatCard
+              label="Conversion rate"
+              value={`${conversionRate}%`}
+              hint={`${successCount} paid / ${enrollItems.length} recent`}
+              accentClass="from-slate-500 to-slate-700"
+              icon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              }
+            />
+          </div>
         </div>
       )}
 
@@ -430,7 +449,7 @@ export default function Dashboard() {
               <h3 className="text-sm font-semibold text-slate-900">Enrollments — last 7 days</h3>
               <span className="text-xs text-slate-500">{totalEnroll7d} total</span>
             </div>
-            <MiniBarChart data={enrollmentTrend} color="#4f46e5" />
+            <MiniBarChart data={enrollmentTrend} color="#2563EB" />
           </Card>
           <Card>
             <div className="flex items-center justify-between mb-4 gap-2">
@@ -447,7 +466,7 @@ export default function Dashboard() {
         <Card>
           <div className="flex items-center justify-between mb-4 gap-2">
             <h3 className="text-sm font-semibold text-slate-900">Follow-ups by status</h3>
-            <Link to="/admin/follow-ups" className="text-xs text-emerald-600 hover:underline">
+            <Link to="/admin/follow-ups" className="text-xs text-brand-600 hover:text-brand-800 hover:underline font-medium">
               View all →
             </Link>
           </div>
@@ -456,7 +475,7 @@ export default function Dashboard() {
         <Card>
           <div className="flex items-center justify-between mb-4 gap-2">
             <h3 className="text-sm font-semibold text-slate-900">Payments by status</h3>
-            <Link to="/admin/payments" className="text-xs text-emerald-600 hover:underline">
+            <Link to="/admin/payments" className="text-xs text-brand-600 hover:text-brand-800 hover:underline font-medium">
               View all →
             </Link>
           </div>
@@ -470,7 +489,7 @@ export default function Dashboard() {
         <Card>
           <div className="flex items-center justify-between mb-4 gap-2">
             <h3 className="text-sm font-semibold text-slate-900">Recent enrollments</h3>
-            <Link to="/admin/enrollments" className="text-xs text-emerald-600 hover:underline">
+            <Link to="/admin/enrollments" className="text-xs text-brand-600 hover:text-brand-800 hover:underline font-medium">
               All →
             </Link>
           </div>
@@ -487,7 +506,7 @@ export default function Dashboard() {
                     <div className="text-xs text-slate-500 truncate">{e.email ?? e.phone ?? '—'}</div>
                   </div>
                   <div className="text-right shrink-0">
-                    <StatusPill status={e.status ?? 'NEW'} color="#4f46e5" />
+                    <StatusPill status={e.status ?? 'NEW'} color="#2563EB" />
                     <div className="text-[10px] text-slate-400 mt-1">
                       {e.createdAt ? new Date(e.createdAt).toLocaleDateString() : ''}
                     </div>
@@ -502,7 +521,7 @@ export default function Dashboard() {
         <Card>
           <div className="flex items-center justify-between mb-4 gap-2">
             <h3 className="text-sm font-semibold text-slate-900">Recent payments</h3>
-            <Link to="/admin/payments" className="text-xs text-emerald-600 hover:underline">
+            <Link to="/admin/payments" className="text-xs text-brand-600 hover:text-brand-800 hover:underline font-medium">
               All →
             </Link>
           </div>
@@ -534,7 +553,7 @@ export default function Dashboard() {
         <Card>
           <div className="flex items-center justify-between mb-4 gap-2">
             <h3 className="text-sm font-semibold text-slate-900">Upcoming follow-ups</h3>
-            <Link to="/admin/follow-ups" className="text-xs text-emerald-600 hover:underline">
+            <Link to="/admin/follow-ups" className="text-xs text-brand-600 hover:text-brand-800 hover:underline font-medium">
               All →
             </Link>
           </div>
@@ -600,14 +619,15 @@ export default function Dashboard() {
           <Link
             key={q.to}
             to={q.to}
-            className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-slate-200 hover:border-emerald-300 hover:shadow-[0_4px_12px_rgba(15,23,42,0.08)] transition-all duration-200"
+            className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border hover:shadow-card-hover transition-all duration-200 shadow-card"
+            style={{ borderColor: 'var(--admin-border, #E5E7EB)' }}
           >
-            <div className="w-9 h-9 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+            <div className="w-9 h-9 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center shrink-0">
               {q.icon}
             </div>
             <div className="min-w-0">
-              <div className="text-sm font-medium text-slate-900 truncate">{q.label}</div>
-              <div className="text-xs text-slate-500 truncate">{q.sub}</div>
+              <div className="text-[13px] font-semibold text-slate-900 truncate">{q.label}</div>
+              <div className="text-[12px] text-slate-500 truncate">{q.sub}</div>
             </div>
           </Link>
         ))}

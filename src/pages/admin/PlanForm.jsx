@@ -349,7 +349,7 @@ export default function PlanForm() {
               onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFeature(); } }}
               placeholder="Add a feature and press Enter or click Add"
               maxLength={200}
-              className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+              className="flex-1 px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
             />
             <Button
               variant="secondary"
@@ -420,7 +420,7 @@ export default function PlanForm() {
                         value={p.basePrice}
                         onChange={(e) => setPricingField(months, 'basePrice', e.target.value)}
                         placeholder="0.00"
-                        className="w-28 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+                        className="w-28 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -431,7 +431,7 @@ export default function PlanForm() {
                         step="0.1"
                         value={p.discountPercent}
                         onChange={(e) => setPricingField(months, 'discountPercent', e.target.value)}
-                        className="w-20 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+                        className="w-20 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
                       />
                     </td>
                     <td className="px-4 py-3">
@@ -446,14 +446,14 @@ export default function PlanForm() {
                         onChange={(e) => setPricingField(months, 'discountLabel', e.target.value)}
                         placeholder="e.g. Save 10%"
                         maxLength={100}
-                        className="w-32 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+                        className="w-32 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
                       />
                     </td>
                     <td className="px-4 py-3">
                       <select
                         value={p.status}
                         onChange={(e) => setPricingField(months, 'status', e.target.value)}
-                        className="px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+                        className="px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
                       >
                         <option value="ACTIVE">Active</option>
                         <option value="INACTIVE">Inactive</option>

@@ -6,7 +6,7 @@
  * Inspected: 2026-05-09
  *
  * COLOR PALETTE (extracted)
- *   Primary accent:   #4f46e5 / indigo-600  (sidebar active, buttons, links)
+ *   Primary accent:   #0B4C4C / brand-600  (sidebar active, buttons, links)
  *   Sidebar bg:       #ffffff with border-r border-slate-200
  *   Page bg:          #f8fafc / slate-50
  *   Surface card:     #ffffff with 1px border border-slate-200, rounded-xl
@@ -18,7 +18,7 @@
  *   Success:          bg #ecfdf5 / emerald-50, text #047857 / emerald-700
  *   Warning:          bg #fffbeb / emerald-50, text #b45309 / emerald-600
  *   Danger:           bg #fef2f2 / red-50, text #b91c1c / red-700
- *   Info:             bg #eff6ff / indigo-50, text #4338ca / indigo-700
+ *   Info:             bg #F0FAFA / brand-50, text #0A3838 / brand-700
  *
  * TYPOGRAPHY
  *   Font family:      'Lexend Deca', system-ui (already configured in tailwind.config.js)
@@ -35,8 +35,8 @@
  *
  * SIDEBAR
  *   Width:            240px desktop, 200px tablet, 288px mobile drawer
- *   Active link:      bg-indigo-50 text-indigo-700, left border accent (border-l-2 border-indigo-600)
- *   Icon:             w-4 h-4, colored with text-indigo-600 when active
+ *   Active link:      bg-brand-50 text-brand-700, left border accent (border-l-2 border-brand-600)
+ *   Icon:             w-4 h-4, colored with text-brand-600 when active
  *   Nav section label: text-[10px] uppercase tracking-widest text-slate-400 font-semibold px-3 pt-4 pb-1
  *
  * CARD / TABLE / BUTTON
@@ -51,7 +51,7 @@
  *
  * INTERACTION PATTERNS
  *   Button hover:     200ms ease-out color/shadow transitions
- *   Focus ring:       focus:ring-2 focus:ring-indigo-300 focus:outline-none
+ *   Focus ring:       focus:ring-2 focus:ring-brand-300 focus:outline-none
  *   Row transition:   transition-colors duration-150
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -77,7 +77,7 @@ export const tokens = {
     success: { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500' },
     warning: { bg: 'bg-emerald-50',   text: 'text-emerald-600',   dot: 'bg-emerald-500'   },
     danger:  { bg: 'bg-red-50',     text: 'text-red-700',     dot: 'bg-red-500'     },
-    info:    { bg: 'bg-indigo-50',  text: 'text-indigo-700',  dot: 'bg-indigo-500'  },
+    info:    { bg: 'bg-brand-50',   text: 'text-brand-700',   dot: 'bg-brand-500'   },
   },
   radius: {
     sm:   'rounded-md',

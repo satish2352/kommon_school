@@ -3,7 +3,7 @@
  *
  * Designed to be used inside a <td colSpan={n}> in a table body.
  *
- * Props:
+ * Props (unchanged):
  *   icon        ReactNode (optional) — SVG icon
  *   title       string
  *   description string (optional)
@@ -13,15 +13,19 @@
 export function EmptyState({ icon, title, description, action, colSpan = 1 }) {
   return (
     <tr>
-      <td colSpan={colSpan} className="px-4 py-14 text-center">
+      <td colSpan={colSpan} className="px-4 py-16 text-center">
         {icon && (
-          <div className="flex justify-center mb-3 text-slate-300">{icon}</div>
+          <div className="flex justify-center mb-4">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center text-brand-600" style={{ background: '#EFF6FF' }}>
+              {icon}
+            </div>
+          </div>
         )}
-        <p className="text-slate-500 text-sm font-medium">{title}</p>
+        <p className="text-slate-700 text-[14px] font-semibold">{title}</p>
         {description && (
-          <p className="text-slate-400 text-xs mt-1">{description}</p>
+          <p className="text-slate-500 text-[13px] mt-1.5 max-w-xs mx-auto leading-relaxed">{description}</p>
         )}
-        {action && <div className="mt-4 flex justify-center">{action}</div>}
+        {action && <div className="mt-5 flex justify-center">{action}</div>}
       </td>
     </tr>
   );

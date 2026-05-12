@@ -1,5 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700;800;900&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700;800;900&display=swap');
 
 @tailwind base;
@@ -8,32 +8,52 @@
 
 /* ──────────────────────────────────────────────────────────
  * Admin panel theme — scoped via .admin-shell
- * Public marketing site keeps Lexend Deca + its existing palette.
- * Admin uses Inter (Lovable.dev default) + emerald accent:
- *   Sidebar  : #0F172A (near-black slate)
- *   Page bg  : #F8FAFC (cool light) — closer to Lovable/shadcn default
- *   Cards    : #FFFFFF with #E2E8F0 border
- *   Text     : #0F172A primary, #64748B muted
- *   Accent   : #059669 (emerald-600)
- *   Radius   : 0.5rem (8px) buttons, 0.75rem (12px) cards
+ * "Light Sidebar" professional theme (Stripe Dashboard style):
+ *   --primary             blue-600  → #2563EB
+ *   --sidebar-background  white     → #FFFFFF (light sidebar, NOT dark)
+ *   --sidebar-foreground  grey-600  → #4B5563
+ *   --sidebar-primary     blue-600  → #2563EB  (active item text + accent bar)
+ *   --sidebar-accent      grey-100  → #F3F4F6 (hover bg)
+ *   --sidebar-border      grey-200  → #E5E7EB
+ *   --sidebar-active-bg   blue-50   → #EFF6FF (active item background)
+ *   --background          grey-50   → #F9FAFB
+ *   --foreground          grey-900  → #111827
+ *   --muted-foreground    grey-500  → #6B7280
+ *   --border              grey-200  → #E5E7EB
+ *   --radius              0.625rem (10px); cards use 0.75rem (12px)
+ *   font-family           Inter, system-ui, sans-serif
  * ────────────────────────────────────────────────────────── */
 .admin-shell {
   font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --admin-bg: #F8FAFC;
-  --admin-sidebar: #0F172A;
-  --admin-sidebar-hover: #1E293B;
-  --admin-card: #FFFFFF;
-  --admin-border: #E2E8F0;
-  --admin-text: #0F172A;
-  --admin-text-muted: #64748B;
-  --admin-accent: #059669;
-  --admin-accent-hover: #047857;
-  --admin-accent-soft: #ECFDF5;
-  --admin-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
-  --admin-shadow-hover: 0 4px 12px rgba(15, 23, 42, 0.08);
-  font-feature-settings: 'cv11', 'ss01', 'ss03';
+  --admin-bg: #F9FAFB;
+  --admin-sidebar: #FFFFFF;
+  --admin-sidebar-fg: #4B5563;
+  --admin-sidebar-fg-muted: #9CA3AF;
+  --admin-sidebar-active: #EFF6FF;
+  --admin-sidebar-hover: #F3F4F6;
+  --admin-sidebar-border: #E5E7EB;
+  --admin-sidebar-mint: #2563EB;
+  --admin-card: #ffffff;
+  --admin-border: #E5E7EB;
+  --admin-border-soft: #F3F4F6;
+  --admin-text: #111827;
+  --admin-text-muted: #6B7280;
+  --admin-accent: #2563EB;
+  --admin-accent-hover: #1D4ED8;
+  --admin-accent-soft: #EFF6FF;
+  --admin-shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --admin-shadow-hover: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   -webkit-font-smoothing: antialiased;
-  letter-spacing: -0.01em;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em;
+  color: var(--admin-text);
+}
+
+/* Apply Inter to every descendant of .admin-shell (override Lexend on body) */
+.admin-shell,
+.admin-shell * {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
 /* Tighten heading tracking for premium SaaS feel */
@@ -41,6 +61,105 @@
 .admin-shell h2,
 .admin-shell h3 {
   letter-spacing: -0.02em;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+}
+
+/* Shimmer skeleton animation */
+@keyframes shimmer-sweep {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #e2e8f0 25%,
+    #f1f5f9 50%,
+    #e2e8f0 75%
+  );
+  background-size: 600px 100%;
+  animation: shimmer-sweep 1.6s infinite linear;
+}
+
+/* ── Sidebar nav item base ────────────────────────────────
+ * Light sidebar (Stripe Dashboard style):
+ *   default → grey-600 text on white
+ *   hover   → grey-100 background + grey-900 text
+ *   active  → blue-50 background + blue-600 text + 3px blue left bar
+ */
+.admin-nav-item {
+  position: relative;
+  color: var(--admin-sidebar-fg);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.admin-nav-item:hover {
+  background: var(--admin-sidebar-hover);
+  color: var(--admin-text);
+}
+
+/* Active state — blue accent, soft tint, left bar */
+.admin-nav-active {
+  background: var(--admin-sidebar-active);
+  color: var(--admin-sidebar-mint);
+  position: relative;
+}
+.admin-nav-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 1.25rem;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--admin-sidebar-mint);
+}
+
+/* Section label inside sidebar */
+.admin-section-label {
+  color: var(--admin-sidebar-fg-muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Glass card surface (used by header + popovers) */
+.glass-card {
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border: 1px solid rgba(15,23,42,0.06);
+  box-shadow: var(--admin-shadow-card);
+}
+
+/* ── Reference utility primitives ─────────────────────────
+ * Mirrors .erp-card / .erp-page-header / .status-badge from
+ * https://eleganzaoneerp.lovable.app/assets/index-CjNL7Ur2.css
+ */
+.erp-card {
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-border);
+  background-color: var(--admin-card);
+  box-shadow: var(--admin-shadow-card);
+  transition: box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.erp-card:hover {
+  box-shadow: var(--admin-shadow-hover);
+}
+.erp-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.erp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
 }
 
 @layer base {
@@ -256,7 +375,7 @@
   }
 
   .hover-glow:hover {
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), 0 8px 32px rgba(99, 102, 241, 0.12);
+    box-shadow: 0 0 0 3px rgba(14, 93, 93, 0.15), 0 8px 32px rgba(14, 93, 93, 0.12);
   }
 }
 

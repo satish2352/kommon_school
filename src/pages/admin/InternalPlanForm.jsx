@@ -126,7 +126,7 @@ function CouponRow({ coupon, idx, onChange, onRemove, errors }) {
             onChange={(e) => onChange('code', e.target.value.toUpperCase().slice(0, 50))}
             placeholder="e.g. WELCOME10"
             maxLength={50}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
           />
           {err.code && <p className="text-red-500 text-xs mt-1">{err.code}</p>}
         </div>
@@ -136,7 +136,7 @@ function CouponRow({ coupon, idx, onChange, onRemove, errors }) {
           <select
             value={coupon.status}
             onChange={(e) => onChange('status', e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
           >
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
@@ -150,7 +150,7 @@ function CouponRow({ coupon, idx, onChange, onRemove, errors }) {
           <select
             value={coupon.discountType}
             onChange={(e) => onChange('discountType', e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
           >
             <option value="PERCENT">Percent (%)</option>
             <option value="FLAT">Flat (₹)</option>
@@ -169,7 +169,7 @@ function CouponRow({ coupon, idx, onChange, onRemove, errors }) {
             value={coupon.discountValue}
             onChange={(e) => onChange('discountValue', e.target.value)}
             placeholder={coupon.discountType === 'PERCENT' ? 'e.g. 10' : 'e.g. 500'}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
           />
           {err.discountValue && <p className="text-red-500 text-xs mt-1">{err.discountValue}</p>}
         </div>
@@ -183,7 +183,7 @@ function CouponRow({ coupon, idx, onChange, onRemove, errors }) {
             value={coupon.usageLimit}
             onChange={(e) => onChange('usageLimit', e.target.value)}
             placeholder="e.g. 100 (leave blank = unlimited)"
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
           />
           {err.usageLimit && <p className="text-red-500 text-xs mt-1">{err.usageLimit}</p>}
         </div>
@@ -196,7 +196,7 @@ function CouponRow({ coupon, idx, onChange, onRemove, errors }) {
             type="date"
             value={coupon.expiryDate}
             onChange={(e) => onChange('expiryDate', e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
           />
         </div>
         {coupon.usedCount > 0 && (
@@ -380,7 +380,7 @@ export default function InternalPlanForm() {
                 </span>
                 <button
                   type="button"
-                  className="text-xs text-indigo-600 hover:text-indigo-800"
+                  className="text-xs text-brand-600 hover:text-brand-800"
                   onClick={() => {
                     navigator.clipboard?.writeText(planRefId);
                     toast.success('Reference ID copied');

@@ -1,17 +1,18 @@
 /**
  * StatusToggle — clickable status pill that toggles between ACTIVE / INACTIVE.
  *
- * When isLocked is true, renders a non-interactive badge with a lock icon
- * (system-default rows).
+ * When isLocked is true, renders a non-interactive badge with a lock icon.
+ *
+ * Prop API unchanged: status, onToggle, disabled, isLocked
  */
 export function StatusToggle({ status, onToggle, disabled = false, isLocked = false }) {
   if (isLocked) {
     return (
       <span
-        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 ${
           status === 'ACTIVE'
-            ? 'bg-emerald-50 text-emerald-700'
-            : 'bg-slate-100 text-slate-600'
+            ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/70'
+            : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200/70'
         }`}
         title="System default — status cannot be changed"
       >
@@ -39,12 +40,16 @@ export function StatusToggle({ status, onToggle, disabled = false, isLocked = fa
       onClick={onToggle}
       disabled={disabled}
       title="Click to toggle status"
-      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed ${
+      className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium leading-4 cursor-pointer
+        transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-brand-200 focus:ring-offset-1
+        disabled:opacity-50 disabled:cursor-not-allowed ${
         status === 'ACTIVE'
-          ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+          ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/70 hover:bg-emerald-100 hover:ring-emerald-300'
+          : 'bg-slate-100 text-slate-500 ring-1 ring-slate-200/70 hover:bg-slate-200 hover:ring-slate-300'
       }`}
     >
+      {/* Status dot */}
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status === 'ACTIVE' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
       {status}
     </button>
   );

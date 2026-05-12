@@ -15,8 +15,14 @@ import Payments from '../pages/admin/Payments'
 import FollowUps from '../pages/admin/FollowUps'
 import Webhooks from '../pages/admin/Webhooks'
 import Courses from '../pages/admin/Courses'
-import EducationMaster from '../pages/admin/EducationMaster'
 import DurationMaster from '../pages/admin/DurationMaster'
+import Plans from '../pages/admin/Plans'
+import PlanForm from '../pages/admin/PlanForm'
+import PlanEnrollments from '../pages/admin/PlanEnrollments'
+import InternalPlans from '../pages/admin/InternalPlans'
+import InternalPlanForm from '../pages/admin/InternalPlanForm'
+import AdminEnrollmentForm from '../pages/admin/AdminEnrollmentForm'
+import AdminBulkEnrollment from '../pages/admin/AdminBulkEnrollment'
 import RequireAuth from '../components/auth/RequireAuth'
 import { EnrollModalProvider } from '../context/EnrollModalContext'
 import EnrollModal from '../components/common/EnrollModal'
@@ -60,12 +66,20 @@ export default function AppRoutes() {
             >
               <Route index element={<Dashboard />} />
               <Route path="enrollments" element={<Enrollments />} />
+              <Route path="enrollments/new" element={<AdminEnrollmentForm />} />
+              <Route path="enrollments/bulk" element={<AdminBulkEnrollment />} />
               <Route path="payments" element={<Payments />} />
               <Route path="follow-ups" element={<FollowUps />} />
               <Route path="webhooks" element={<Webhooks />} />
               <Route path="courses" element={<Courses />} />
-              <Route path="education-master" element={<EducationMaster />} />
               <Route path="duration-master" element={<DurationMaster />} />
+              <Route path="plans" element={<Plans />} />
+              <Route path="plans/new" element={<PlanForm />} />
+              <Route path="plans/:id" element={<PlanForm />} />
+              <Route path="plans/:id/enrollments" element={<PlanEnrollments />} />
+              <Route path="internal-plans" element={<InternalPlans />} />
+              <Route path="internal-plans/new" element={<InternalPlanForm />} />
+              <Route path="internal-plans/:id" element={<InternalPlanForm />} />
             </Route>
             <Route path="/*" element={<MainLayout />} />
           </Routes>

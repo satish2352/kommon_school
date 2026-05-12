@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { courseService } from '../../services/courseService';
-import { educationMasterService } from '../../services/educationMasterService';
 import { durationMasterService } from '../../services/durationMasterService';
 import {
   PageHeader,
@@ -36,7 +35,6 @@ const EMPTY_FORM = {
   nameOfCourseAsGroup: '',
   coupon: '',
   courseFee: '',
-  educationId: '',
   durationId: '',
   description: '',
   status: 'ACTIVE',
@@ -64,7 +62,7 @@ function validateForm(f) {
 }
 
 /* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const COL_COUNT = 7;
+const COL_COUNT = 6;
 
 function SkeletonRows({ count = 7 }) {
   return (
@@ -74,7 +72,6 @@ function SkeletonRows({ count = 7 }) {
           <Td><Skeleton w="w-48" /></Td>
           <Td><Skeleton w="w-20" /></Td>
           <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
           <Td><Skeleton w="w-16" /></Td>
           <Td><Skeleton w="w-14" /></Td>
           <Td><Skeleton w="w-16" /></Td>
@@ -125,11 +122,9 @@ export default function Courses() {
   const [deleting, setDeleting]         = useState(false);
 
   /* ── Master dropdown data (loaded once on mount) ── */
-  const [educationOptions, setEducationOptions] = useState([]);
   const [durationOptions, setDurationOptions]   = useState([]);
 
   useEffect(() => {
-    educationMasterService.listActive().then(setEducationOptions).catch(() => {});
     durationMasterService.listActive().then(setDurationOptions).catch(() => {});
   }, []);
 
@@ -174,7 +169,6 @@ export default function Courses() {
       nameOfCourseAsGroup: course.nameOfCourseAsGroup ?? '',
       coupon:              course.coupon ?? '',
       courseFee:           course.courseFee != null ? String(Number(course.courseFee)) : '',
-      educationId:         course.education?.id != null ? String(course.education.id) : '',
       durationId:          course.duration?.id != null ? String(course.duration.id) : '',
       description:         course.description ?? '',
       status:              course.status ?? 'ACTIVE',
@@ -207,7 +201,7 @@ export default function Courses() {
         ...(form.coupon.trim() ? { coupon: form.coupon.trim().toUpperCase() } : { coupon: null }),
         ...(form.description.trim() ? { description: form.description.trim() } : { description: null }),
         status:      form.status,
-        educationId: form.educationId ? Number(form.educationId) : null,
+        educationId: 1, // dummy: Education column removed from UI; backend/webhook still expect a value
         durationId:  form.durationId  ? Number(form.durationId)  : null,
       };
       if (editCourse) {
@@ -315,7 +309,7 @@ export default function Courses() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Course Name', 'Coupon', 'Course Fee', 'Education', 'Duration', 'Status', 'Actions'].map((h) => (
+              {['Course Name', 'Coupon', 'Course Fee', 'Duration', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
@@ -353,9 +347,6 @@ export default function Courses() {
                   </Td>
                   <Td className="text-slate-900 font-semibold">
                     {formatFee(c.courseFee)}
-                  </Td>
-                  <Td className="text-slate-600">
-                    {c.education?.name ?? <span className="text-slate-300">—</span>}
                   </Td>
                   <Td className="text-slate-600">
                     {c.duration?.label ?? <span className="text-slate-300">—</span>}
@@ -453,29 +444,16 @@ export default function Courses() {
             error={formErrors.coupon}
           />
 
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Education"
-              value={form.educationId}
-              onChange={(e) => setField('educationId', e.target.value)}
-            >
-              <option value="">— Select —</option>
-              {educationOptions.map((opt) => (
-                <option key={opt.id} value={String(opt.id)}>{opt.name}</option>
-              ))}
-            </Select>
-
-            <Select
-              label="Duration"
-              value={form.durationId}
-              onChange={(e) => setField('durationId', e.target.value)}
-            >
-              <option value="">— Select —</option>
-              {durationOptions.map((opt) => (
-                <option key={opt.id} value={String(opt.id)}>{opt.label}</option>
-              ))}
-            </Select>
-          </div>
+          <Select
+            label="Duration"
+            value={form.durationId}
+            onChange={(e) => setField('durationId', e.target.value)}
+          >
+            <option value="">— Select —</option>
+            {durationOptions.map((opt) => (
+              <option key={opt.id} value={String(opt.id)}>{opt.label}</option>
+            ))}
+          </Select>
 
           <Select
             label="Status"

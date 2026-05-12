@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useEnrollModal } from '../../context/EnrollModalContext'
 import { createEnrollment, validatePromoCode } from '../../services/enrollmentApi'
+import { listPublic as listPublicPlans, selectForEnrollment } from '../../services/plansService'
+import PlanSelector from './PlanSelector'
+import PlanComparisonModal from './PlanComparisonModal'
 import PaymentFlow from './PaymentFlow'
 
 // Map user-friendly labels in the form to the backend enum values.
@@ -32,10 +35,11 @@ const SOURCE_MAP = {
   'Other': 'OTHER',
 }
 
-// 3-step flow: contact info, preferences, payment
+// 4-step flow: contact info, preferences, plan selection, payment
 const STEPS = [
   { title: 'About You', subtitle: 'Help us understand who you are' },
   { title: 'Practice Preferences', subtitle: 'Almost there!' },
+  { title: 'Choose Your Plan', subtitle: 'Pick the plan that works for you' },
   { title: 'Complete payment', subtitle: 'Secure checkout via Razorpay' },
 ]
 
@@ -79,10 +83,17 @@ export default function EnrollModal() {
   const [errors, setErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
   const [createdEnrollment, setCreatedEnrollment] = useState(null)
+  // Plan selection state
+  const [plans, setPlans] = useState([])
+  const [plansLoading, setPlansLoading] = useState(false)
+  const [selectedPlanPricingId, setSelectedPlanPricingId] = useState(null)
+  const [selectedPlanSummary, setSelectedPlanSummary] = useState(null)
+  const [showComparison, setShowComparison] = useState(false)
   // Tracks whether the payment step completed successfully
   const [paid, setPaid] = useState(false)
 
-  // Body scroll lock — owned by this modal; PaymentFlow never touches it
+  // Body scroll lock + state reset + plans pre-fetch — all gated on isOpen changes.
+  // Note: setState calls inside effects are a project-wide lint pattern; pre-existing in all modal components.
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -92,10 +103,20 @@ export default function EnrollModal() {
       setErrors({})
       setSubmitting(false)
       setCreatedEnrollment(null)
+      setSelectedPlanPricingId(null)
+      setSelectedPlanSummary(null)
+      setShowComparison(false)
       setData({
         role: '', education: '', readiness: '', name: '', email: '', phone: '',
         source: '', promoCode: 'NEW501',
       })
+      // Pre-fetch plans so step 2 loads instantly
+      setPlans([])
+      setPlansLoading(true)
+      listPublicPlans()
+        .then((p) => setPlans(p))
+        .catch(() => setPlans([]))
+        .finally(() => setPlansLoading(false))
     } else {
       document.body.style.overflow = ''
     }
@@ -120,6 +141,11 @@ export default function EnrollModal() {
         e.promoCode = 'Promo code is required'
       }
     }
+    if (step === 2) {
+      if (!selectedPlanPricingId) {
+        e._plan = 'Please select a plan to continue'
+      }
+    }
     return e
   }
 
@@ -134,13 +160,11 @@ export default function EnrollModal() {
       return
     }
 
-    // Step 1 → Step 2: validate promo, submit enrollment, then show payment inline
+    // Step 1 → Step 2: validate promo, submit enrollment, then show plan selector
     if (step === 1) {
       setSubmitting(true)
 
       // Backend promo-code pre-check before creating the enrollment.
-      // Fail fast with a field-level error so the user can correct the code
-      // without losing their other form data.
       try {
         await validatePromoCode(data.promoCode.trim().toUpperCase())
       } catch (promoErr) {
@@ -173,7 +197,7 @@ export default function EnrollModal() {
           email: payload.email,
           phone: payload.phone,
         })
-        // Advance to step 2 — payment renders inline inside the same modal
+        // Advance to step 2 — plan selection
         setStep(2)
       } catch (err) {
         const detail = Array.isArray(err.details) && err.details.length
@@ -185,11 +209,34 @@ export default function EnrollModal() {
       }
       return
     }
+
+    // Step 2 → Step 3: select plan then proceed to payment
+    if (step === 2) {
+      if (!selectedPlanPricingId) {
+        setErrors({ _plan: 'Please select a plan to continue' })
+        return
+      }
+      if (!createdEnrollment?.id) {
+        setErrors({ _api: 'Enrollment not found. Please start over.' })
+        return
+      }
+      setSubmitting(true)
+      try {
+        await selectForEnrollment(createdEnrollment.id, selectedPlanPricingId)
+        // Advance to step 3 — payment
+        setStep(3)
+      } catch (err) {
+        setErrors({ _api: err.message || 'Could not select plan. Please try again.' })
+      } finally {
+        setSubmitting(false)
+      }
+      return
+    }
   }
 
   const back = () => {
-    // Back is only available on steps 0 and 1
-    // Step 2 (payment) has no back button — user can close
+    // Back is only available on steps 0, 1, and 2
+    // Step 3 (payment) has no back button — user can close
     setErrors({})
     setStep(s => s - 1)
   }
@@ -197,7 +244,7 @@ export default function EnrollModal() {
   if (!isOpen) return null
 
   // Whether we're on the payment step
-  const isPaymentStep = step === 2
+  const isPaymentStep = step === 3
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -392,17 +439,53 @@ export default function EnrollModal() {
                   </>
                 )}
 
-                {/* ── STEP 2: Payment (inline, same modal) ── */}
-                {step === 2 && createdEnrollment && (
+                {/* ── STEP 2: Plan selection ── */}
+                {step === 2 && (
+                  <div>
+                    {plansLoading ? (
+                      <div className="py-10 text-center text-slate-500 text-sm">
+                        Loading plans…
+                      </div>
+                    ) : plans.length === 0 ? (
+                      <div className="py-10 text-center text-slate-500 text-sm">
+                        No plans available. Please try again.
+                      </div>
+                    ) : (
+                      <PlanSelector
+                        plans={plans}
+                        value={selectedPlanPricingId}
+                        onChange={(id, summary) => {
+                          setSelectedPlanPricingId(id)
+                          setSelectedPlanSummary(summary)
+                          setErrors(prev => ({ ...prev, _plan: '' }))
+                        }}
+                        defaultDuration={6}
+                        onCompare={() => setShowComparison(true)}
+                      />
+                    )}
+                    {errors._plan && (
+                      <p className="text-red-500 text-xs mt-2">{errors._plan}</p>
+                    )}
+                    <PlanComparisonModal
+                      plans={plans}
+                      isOpen={showComparison}
+                      onClose={() => setShowComparison(false)}
+                    />
+                  </div>
+                )}
+
+                {/* ── STEP 3: Payment (inline, same modal) ── */}
+                {step === 3 && createdEnrollment && (
                   <PaymentFlow
                     enrollment={createdEnrollment}
                     onSuccess={() => setPaid(true)}
                     onClose={close}
+                    selectedPlan={selectedPlanSummary}
                   />
                 )}
 
                 {/* Show spinner if we just submitted and are waiting for enrollment creation */}
-                {step === 2 && !createdEnrollment && (
+                {step === 3 && !createdEnrollment && (
                   <div className="py-10 text-center text-slate-500 text-sm">
                     Setting up your enrollment…
                   </div>
@@ -441,9 +524,13 @@ export default function EnrollModal() {
                 className="btn-gradient-cta flex items-center gap-2 px-7 py-2.5 rounded-full text-white font-bold text-sm shadow hover:shadow-lg hover:scale-105 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {submitting
-                  ? 'Submitting…'
+                  ? step === 1 ? 'Submitting…' : 'Confirming…'
                   : step === 0
                   ? 'Continue'
+                  : step === 1
+                  ? 'Submit & Continue'
+                  : step === 2
+                  ? 'Continue to Payment'
                   : 'Submit & Enroll'}
                 {!submitting && step === 0 && (
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

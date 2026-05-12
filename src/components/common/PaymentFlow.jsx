@@ -6,13 +6,15 @@
  * those all belong to the parent (EnrollModal or PaymentModal wrapper).
  *
  * Props:
- *   enrollment — { id, enrollmentId, name, email, phone }
- *   onSuccess  — () => void  — called when setPhase('success') settles and webhook fires
- *   onClose    — () => void  — called when user clicks Close (failed) or Done (success)
+ *   enrollment   — { id, enrollmentId, name, email, phone }
+ *   onSuccess    — () => void  — called when setPhase('success') settles and webhook fires
+ *   onClose      — () => void  — called when user clicks Close (failed) or Done (success)
+ *   selectedPlan — optional plan summary from PlanSelector (displayed above amount)
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPublicPaymentOrder, verifyPublicPayment, getPaymentStatus } from '../../services/enrollmentApi'
+import PlanSummaryCard from './PlanSummaryCard'
 
 const RZP_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js'
 
@@ -110,7 +112,7 @@ function Spinner({ className = '' }) {
 //   success   — verified OK  (parent receives onSuccess callback)
 //   failed    — unrecoverable error
 
-export default function PaymentFlow({ enrollment, onSuccess, onClose }) {
+export default function PaymentFlow({ enrollment, onSuccess, onClose, selectedPlan }) {
   const [phase, setPhase] = useState('loading')
   const [error, setError] = useState(null)
   const [order, setOrder] = useState(null)
@@ -358,6 +360,8 @@ export default function PaymentFlow({ enrollment, onSuccess, onClose }) {
       {/* ── ready ── */}
       {phase === 'ready' && order && (
         <div>
+          {/* Plan summary card — shown when a plan was selected */}
+          {selectedPlan && <PlanSummaryCard plan={selectedPlan} />}
           <div className="mb-5 p-4 rounded-xl bg-slate-50 border border-slate-200">
             <div className="text-xs text-slate-500 mb-0.5">Enrollment reference</div>
             <div className="font-mono text-sm text-slate-900">{order.enrollmentId}</div>

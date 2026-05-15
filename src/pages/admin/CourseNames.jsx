@@ -1,7 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { courseService } from '../../services/courseService';
-import { durationMasterService } from '../../services/durationMasterService';
 import { courseNameService } from '../../services/courseNameService';
 import {
   PageHeader,
@@ -9,8 +7,8 @@ import {
   Button,
   IconButton,
   Input,
-  Textarea,
   Select,
+  Textarea,
   Modal,
   StatusToggle,
   Table,
@@ -24,52 +22,38 @@ import {
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
 
-const formatFee = (fee) =>
-  fee != null
-    ? `₹${Number(fee).toLocaleString('en-IN', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })}`
-    : '—';
-
 const EMPTY_FORM = {
-  courseNameId: '',
-  coupon: '',
-  courseFee: '',
-  durationId: '',
+  name:        '',
   description: '',
-  status: 'ACTIVE',
+  status:      'ACTIVE',
 };
 
 function validateForm(f) {
   const e = {};
-  if (!f.courseNameId) {
-    e.courseNameId = 'Course name is required';
+  if (!f.name.trim()) {
+    e.name = 'Course name is required';
+  } else if (f.name.trim().length < 2) {
+    e.name = 'Course name must be at least 2 characters';
+  } else if (f.name.trim().length > 200) {
+    e.name = 'Course name must be at most 200 characters';
   }
-  if (f.courseFee === '' || f.courseFee === null || f.courseFee === undefined) {
-    e.courseFee = 'Course fee is required';
-  } else if (isNaN(Number(f.courseFee)) || Number(f.courseFee) < 0) {
-    e.courseFee = 'Course fee must be a positive number';
-  } else if (Number(f.courseFee) > 9999999.99) {
-    e.courseFee = 'Course fee is too large (max ₹9,999,999.99)';
+  if (f.description && f.description.length > 2000) {
+    e.description = 'Description must be at most 2000 characters';
   }
-  if (f.coupon && f.coupon.length > 50)      e.coupon      = 'Coupon must be at most 50 characters';
-  if (f.description && f.description.length > 2000) e.description = 'Description must be at most 2000 characters';
   return e;
 }
 
 /* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const COL_COUNT = 6;
+const COL_COUNT = 5;
 
-function SkeletonRows({ count = 7 }) {
+function SkeletonRows({ count = 6 }) {
   return (
     <>
       {Array.from({ length: count }).map((_, i) => (
         <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-48" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
+          <Td><Skeleton w="w-8" /></Td>
+          <Td><Skeleton w="w-64" /></Td>
+          <Td><Skeleton w="w-12" /></Td>
           <Td><Skeleton w="w-14" /></Td>
           <Td><Skeleton w="w-16" /></Td>
         </Tr>
@@ -78,7 +62,7 @@ function SkeletonRows({ count = 7 }) {
   );
 }
 
-/* ─── Edit / Delete icons ────────────────────────────────────────────────── */
+/* ─── Icon constants ─────────────────────────────────────────────────────── */
 const EditIcon = (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -92,9 +76,9 @@ const DeleteIcon = (
 );
 
 /* ─── Main page component ────────────────────────────────────────────────── */
-export default function Courses() {
+export default function CourseNames() {
   /* ── List state ── */
-  const [courses, setCourses]       = useState([]);
+  const [records, setRecords]       = useState([]);
   const [meta, setMeta]             = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState(null);
@@ -109,7 +93,7 @@ export default function Courses() {
 
   /* ── Modal / form state ── */
   const [modalOpen, setModalOpen]   = useState(false);
-  const [editCourse, setEditCourse] = useState(null);
+  const [editRecord, setEditRecord] = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving]         = useState(false);
@@ -117,32 +101,6 @@ export default function Courses() {
   /* ── Delete confirm state ── */
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
-
-  /* ── Master dropdown data ── */
-  const [durationOptions, setDurationOptions]     = useState([]);
-  const [courseNameOptions, setCourseNameOptions] = useState([]);
-  const [mastersError, setMastersError]           = useState(null);
-
-  // Re-fetchable so opening the modal pulls fresh data (handles the case where
-  // an admin added new course names / durations in another tab before opening
-  // the form on this page).
-  const loadMasters = useCallback(async () => {
-    setMastersError(null);
-    try {
-      const [durations, names] = await Promise.all([
-        durationMasterService.listActive(),
-        courseNameService.listActive(),
-      ]);
-      setDurationOptions(durations ?? []);
-      setCourseNameOptions(names ?? []);
-    } catch (err) {
-      setMastersError(err?.message ?? 'Failed to load Course Names / Durations');
-    }
-  }, []);
-
-  useEffect(() => {
-    loadMasters();
-  }, [loadMasters]);
 
   /* ── Debounce search ── */
   useEffect(() => {
@@ -157,12 +115,12 @@ export default function Courses() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    courseService
+    courseNameService
       .list({ page, limit, search, status: statusFilter })
-      .then(({ courses: rows, meta: m }) => {
-        if (!cancelled) { setCourses(rows); setMeta(m); }
+      .then(({ records: rows, meta: m }) => {
+        if (!cancelled) { setRecords(rows); setMeta(m); }
       })
-      .catch((err) => { if (!cancelled) setError(err.message ?? 'Failed to load courses'); })
+      .catch((err) => { if (!cancelled) setError(err.message ?? 'Failed to load course names'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [page, limit, search, statusFilter, refreshKey]);
@@ -173,28 +131,21 @@ export default function Courses() {
   const handleLimit        = (v) => { setLimit(Number(v)); setPage(1); };
 
   const openAdd = () => {
-    setEditCourse(null);
+    setEditRecord(null);
     setForm(EMPTY_FORM);
     setFormErrors({});
     setModalOpen(true);
-    // Re-fetch dropdown data so freshly-added course names / durations show up
-    // without requiring a full page reload.
-    loadMasters();
   };
 
-  const openEdit = (course) => {
-    setEditCourse(course);
+  const openEdit = (rec) => {
+    setEditRecord(rec);
     setForm({
-      courseNameId:  course.courseNameId != null ? String(course.courseNameId) : '',
-      coupon:        course.coupon ?? '',
-      courseFee:     course.courseFee != null ? String(Number(course.courseFee)) : '',
-      durationId:    course.duration?.id != null ? String(course.duration.id) : '',
-      description:   course.description ?? '',
-      status:        course.status ?? 'ACTIVE',
+      name:        rec.name ?? '',
+      description: rec.description ?? '',
+      status:      rec.status ?? 'ACTIVE',
     });
     setFormErrors({});
     setModalOpen(true);
-    loadMasters();
   };
 
   const closeModal = () => setModalOpen(false);
@@ -216,42 +167,38 @@ export default function Courses() {
     setSaving(true);
     try {
       const payload = {
-        courseNameId: Number(form.courseNameId),
-        courseFee:    Number(form.courseFee),
-        ...(form.coupon.trim() ? { coupon: form.coupon.trim().toUpperCase() } : { coupon: null }),
-        ...(form.description.trim() ? { description: form.description.trim() } : { description: null }),
+        name:        form.name.trim(),
+        description: form.description.trim() || null,
         status:      form.status,
-        educationId: 1, // dummy: Education column removed from UI; backend/webhook still expect a value
-        durationId:  form.durationId ? Number(form.durationId) : null,
       };
-      if (editCourse) {
-        await courseService.update(editCourse.id, payload);
-        toast.success('Course updated');
+      if (editRecord) {
+        await courseNameService.update(editRecord.id, payload);
+        toast.success('Course name updated');
       } else {
-        await courseService.create(payload);
-        toast.success('Course created');
+        await courseNameService.create(payload);
+        toast.success('Course name created');
       }
       setModalOpen(false);
       refresh();
     } catch (err) {
-      if (err?.code === 'COURSE_OFFERING_EXISTS') {
-        toast.error('A course offering for this Course Name + Duration already exists.');
+      if (err?.code === 'COURSE_NAME_EXISTS') {
+        toast.error('A course name with this value already exists.');
       } else if (err?.code === 'SYSTEM_DEFAULT_LOCKED') {
         toast.error('This record is a system default and cannot be modified.');
       } else {
-        toast.error(err.message ?? 'Failed to save course');
+        toast.error(err.message ?? 'Failed to save course name');
       }
     } finally {
       setSaving(false);
     }
   };
 
-  const handleToggleStatus = async (course) => {
-    if (course.isSystemDefault) return;
-    const newStatus = course.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+  const handleToggleStatus = async (rec) => {
+    if (rec.isSystemDefault) return;
+    const newStatus = rec.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     try {
-      await courseService.update(course.id, { status: newStatus });
-      toast.success(newStatus === 'ACTIVE' ? 'Course activated' : 'Course deactivated');
+      await courseNameService.update(rec.id, { status: newStatus });
+      toast.success(newStatus === 'ACTIVE' ? 'Course name activated' : 'Course name deactivated');
       refresh();
     } catch (err) {
       if (err?.code === 'SYSTEM_DEFAULT_LOCKED') {
@@ -266,17 +213,18 @@ export default function Courses() {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await courseService.remove(deleteTarget.id);
-      toast.success('Course deleted');
+      await courseNameService.remove(deleteTarget.id);
+      toast.success('Course name deleted');
       setDeleteTarget(null);
-      // If we deleted the last item on a non-first page, step back
-      if (courses.length === 1 && page > 1) setPage((p) => p - 1);
+      if (records.length === 1 && page > 1) setPage((p) => p - 1);
       else refresh();
     } catch (err) {
-      if (err?.code === 'SYSTEM_DEFAULT_LOCKED') {
+      if (err?.code === 'COURSE_NAME_IN_USE') {
+        toast.error('Cannot delete: this name is still used by one or more course offerings.');
+      } else if (err?.code === 'SYSTEM_DEFAULT_LOCKED') {
         toast.error('This record is a system default and cannot be modified.');
       } else {
-        toast.error(err.message ?? 'Failed to delete course');
+        toast.error(err.message ?? 'Failed to delete course name');
       }
     } finally {
       setDeleting(false);
@@ -288,11 +236,11 @@ export default function Courses() {
     <div className="space-y-6">
       {/* ── Page header ───────────────────────────────────────────────────── */}
       <PageHeader
-        title="Courses"
-        subtitle="Manage the course catalog"
+        title="Course Names"
+        subtitle="Manage the normalized course name lookup table"
         action={
           <Button variant="primary" onClick={openAdd}>
-            Add Course
+            Add Course Name
           </Button>
         }
       />
@@ -304,8 +252,8 @@ export default function Courses() {
             type="text"
             value={searchInput}
             onChange={(e) => handleSearchChange(e.target.value)}
-            placeholder="Search courses..."
-            className="w-56"
+            placeholder="Search by name..."
+            className="w-64"
           />
           <Select
             value={statusFilter}
@@ -331,7 +279,7 @@ export default function Courses() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Course Name', 'Coupon', 'Course Fee', 'Duration', 'Status', 'Actions'].map((h) => (
+              {['ID', 'Name', 'Used in Courses', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
@@ -339,45 +287,42 @@ export default function Courses() {
           <tbody className="divide-y divide-slate-100">
             {loading && <SkeletonRows />}
 
-            {!loading && !error && courses.length === 0 && (
+            {!loading && !error && records.length === 0 && (
               <EmptyState
                 colSpan={COL_COUNT}
                 icon={
                   <svg className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
                   </svg>
                 }
-                title={!!search || statusFilter !== 'ALL' ? 'No courses match your filters' : 'No courses yet'}
-                description={!!search || statusFilter !== 'ALL' ? 'Try adjusting your search or filter.' : 'Add your first course with the button above.'}
+                title={!!search || statusFilter !== 'ALL' ? 'No course names match your filters' : 'No course names yet'}
+                description={!!search || statusFilter !== 'ALL' ? 'Try adjusting your search or filter.' : 'Add your first course name with the button above.'}
               />
             )}
 
-            {!loading && !error && courses.map((c, idx) => {
-              const isLocked = !!c.isSystemDefault;
+            {!loading && !error && records.map((rec, idx) => {
+              const isLocked = !!rec.isSystemDefault;
               return (
-                <Tr key={c.id} striped={idx % 2 === 1}>
-                  <Td className="text-slate-900 font-medium max-w-xs truncate">
-                    {c.nameOfCourseAsGroup}
+                <Tr key={rec.id} striped={idx % 2 === 1}>
+                  <Td className="text-slate-500 text-sm font-mono">{rec.id}</Td>
+                  <Td className="text-slate-900 font-medium max-w-xs">
+                    {rec.name}
                     {isLocked && (
                       <span className="inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 ml-1.5 align-middle">
                         System
                       </span>
                     )}
                   </Td>
-                  <Td className="font-mono text-xs text-slate-600">
-                    {c.coupon ?? '—'}
-                  </Td>
-                  <Td className="text-slate-900 font-semibold">
-                    {formatFee(c.courseFee)}
-                  </Td>
-                  <Td className="text-slate-600">
-                    {c.duration?.label ?? <span className="text-slate-300">—</span>}
+                  <Td className="text-slate-600 text-center">
+                    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 text-slate-700 text-sm font-semibold">
+                      {rec.courseCount ?? 0}
+                    </span>
                   </Td>
                   <Td>
                     <StatusToggle
-                      status={c.status}
+                      status={rec.status}
                       isLocked={isLocked}
-                      onToggle={() => handleToggleStatus(c)}
+                      onToggle={() => handleToggleStatus(rec)}
                     />
                   </Td>
                   <Td>
@@ -386,15 +331,21 @@ export default function Courses() {
                         icon={EditIcon}
                         variant="default"
                         disabled={isLocked}
-                        title={isLocked ? 'System default — cannot be modified' : 'Edit course'}
-                        onClick={() => { if (isLocked) return; openEdit(c); }}
+                        title={isLocked ? 'System default — cannot be modified' : 'Edit course name'}
+                        onClick={() => { if (isLocked) return; openEdit(rec); }}
                       />
                       <IconButton
                         icon={DeleteIcon}
                         variant="danger"
-                        disabled={isLocked}
-                        title={isLocked ? 'System default — cannot be modified' : 'Delete course'}
-                        onClick={() => { if (isLocked) return; setDeleteTarget(c); }}
+                        disabled={isLocked || (rec.courseCount ?? 0) > 0}
+                        title={
+                          isLocked
+                            ? 'System default — cannot be deleted'
+                            : (rec.courseCount ?? 0) > 0
+                              ? `In use by ${rec.courseCount} course offering(s)`
+                              : 'Delete course name'
+                        }
+                        onClick={() => { if (isLocked || (rec.courseCount ?? 0) > 0) return; setDeleteTarget(rec); }}
                       />
                     </div>
                   </Td>
@@ -419,87 +370,30 @@ export default function Courses() {
       <Modal
         isOpen={modalOpen}
         onClose={closeModal}
-        title={editCourse ? 'Edit Course' : 'Add Course'}
+        title={editRecord ? 'Edit Course Name' : 'Add Course Name'}
+        widthClass="max-w-lg"
         footer={
           <>
             <Button variant="secondary" onClick={closeModal}>
               Cancel
             </Button>
             <Button variant="primary" loading={saving} onClick={handleSave}>
-              {editCourse ? 'Update Course' : 'Add Course'}
+              {saving ? 'Saving...' : editRecord ? 'Update' : 'Add Course Name'}
             </Button>
           </>
         }
       >
         <div className="space-y-4">
-          {/* Surface fetch errors for the dropdown masters so the silent
-              ".catch(() => {})" pattern doesn't hide a broken state */}
-          {mastersError && (
-            <div className="px-3 py-2 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-xs">
-              {mastersError} —{' '}
-              <button type="button" onClick={loadMasters} className="underline font-medium">
-                retry
-              </button>
-            </div>
-          )}
-
-          {/* Course Name — dropdown from CourseNameMaster */}
-          <Select
+          <Input
             label="Course Name"
             required
-            value={form.courseNameId}
-            onChange={(e) => setField('courseNameId', e.target.value)}
-            onBlur={() => handleBlur('courseNameId')}
-            error={formErrors.courseNameId}
-          >
-            <option value="">— Select a course name —</option>
-            {courseNameOptions.map((opt) => (
-              <option key={opt.id} value={String(opt.id)}>{opt.name}</option>
-            ))}
-          </Select>
-          {courseNameOptions.length === 0 && (
-            <p className="text-xs text-slate-500 -mt-2">
-              No active course names found.{' '}
-              <a href="/admin/course-names" className="text-brand-600 underline" target="_blank" rel="noopener noreferrer">
-                Add course names
-              </a>{' '}
-              first.
-            </p>
-          )}
-
-          <Input
-            label="Course Fee (₹)"
-            required
-            type="number"
-            min="0"
-            step="0.01"
-            value={form.courseFee}
-            onChange={(e) => setField('courseFee', e.target.value)}
-            onBlur={() => handleBlur('courseFee')}
-            placeholder="e.g. 49999"
-            error={formErrors.courseFee}
-          />
-
-          <Input
-            label="Coupon Code"
             type="text"
-            value={form.coupon}
-            onChange={(e) => setField('coupon', e.target.value.toUpperCase())}
-            onBlur={() => handleBlur('coupon')}
-            placeholder="e.g. EARLYBIRD20"
-            error={formErrors.coupon}
+            value={form.name}
+            onChange={(e) => setField('name', e.target.value)}
+            onBlur={() => handleBlur('name')}
+            placeholder="e.g. Full Stack Development Using Python"
+            error={formErrors.name}
           />
-
-          <Select
-            label="Duration"
-            value={form.durationId}
-            onChange={(e) => setField('durationId', e.target.value)}
-          >
-            <option value="">— Select —</option>
-            {durationOptions.map((opt) => (
-              <option key={opt.id} value={String(opt.id)}>{opt.label}</option>
-            ))}
-          </Select>
 
           <Select
             label="Status"
@@ -516,7 +410,7 @@ export default function Courses() {
             value={form.description}
             onChange={(e) => setField('description', e.target.value)}
             onBlur={() => handleBlur('description')}
-            placeholder="Brief course overview (optional)"
+            placeholder="Brief description (optional)"
             error={formErrors.description}
           />
         </div>
@@ -526,7 +420,7 @@ export default function Courses() {
       <Modal
         isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        title="Delete course?"
+        title="Delete course name?"
         widthClass="max-w-sm"
         footer={
           <>
@@ -542,9 +436,9 @@ export default function Courses() {
         <p className="text-sm text-slate-600">
           Delete{' '}
           <span className="font-medium text-slate-900">
-            &ldquo;{deleteTarget?.nameOfCourseAsGroup}&rdquo;
+            &ldquo;{deleteTarget?.name}&rdquo;
           </span>
-          ? This cannot be undone.
+          ? This cannot be undone. Course names in use by course offerings cannot be deleted.
         </p>
       </Modal>
     </div>

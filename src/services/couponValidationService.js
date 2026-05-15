@@ -12,7 +12,7 @@
 import { api } from './apiClient';
 import * as mock from './internalPlans/mockBackend';
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 /**
  * Validate a coupon code for an internal plan.

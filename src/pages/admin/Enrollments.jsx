@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAdminEnrollments } from '../../hooks/useAdmin';
 import {
   PageHeader,
@@ -73,7 +72,6 @@ function SkeletonRows({ count = 7 }) {
 }
 
 export default function Enrollments() {
-  const navigate = useNavigate();
   const [page, setPage] = useState(1);
 
   /* ── Filter state ── */
@@ -128,12 +126,6 @@ export default function Enrollments() {
         action={
           <div className="flex items-center gap-2">
             <span className="text-sm text-slate-500 mr-2">{total} total</span>
-            <Button variant="primary" size="sm" onClick={() => navigate('/admin/enrollments/new')}>
-              + New Enrollment
-            </Button>
-            <Button variant="secondary" size="sm" onClick={() => navigate('/admin/enrollments/bulk')}>
-              Bulk Upload (CSV)
-            </Button>
           </div>
         }
       />

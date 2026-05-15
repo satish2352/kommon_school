@@ -17,7 +17,7 @@ import * as mock from './internalPlans/mockBackend';
 
 /* ─── Toggle ────────────────────────────────────────────────────────────── */
 
-const USE_MOCK = true;
+const USE_MOCK = false;
 
 /* ─── Real-backend helpers (mirroring courseService.js / plansAdminService.js) ── */
 

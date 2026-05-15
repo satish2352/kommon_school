@@ -14,6 +14,7 @@ import Enrollments from '../pages/admin/Enrollments'
 import Payments from '../pages/admin/Payments'
 import FollowUps from '../pages/admin/FollowUps'
 import Webhooks from '../pages/admin/Webhooks'
+import SumagoUsers from '../pages/admin/SumagoUsers'
 import Courses from '../pages/admin/Courses'
 import DurationMaster from '../pages/admin/DurationMaster'
 import Plans from '../pages/admin/Plans'
@@ -23,6 +24,7 @@ import InternalPlans from '../pages/admin/InternalPlans'
 import InternalPlanForm from '../pages/admin/InternalPlanForm'
 import AdminEnrollmentForm from '../pages/admin/AdminEnrollmentForm'
 import AdminBulkEnrollment from '../pages/admin/AdminBulkEnrollment'
+import CourseNames from '../pages/admin/CourseNames'
 import RequireAuth from '../components/auth/RequireAuth'
 import { EnrollModalProvider } from '../context/EnrollModalContext'
 import EnrollModal from '../components/common/EnrollModal'
@@ -71,6 +73,7 @@ export default function AppRoutes() {
               <Route path="payments" element={<Payments />} />
               <Route path="follow-ups" element={<FollowUps />} />
               <Route path="webhooks" element={<Webhooks />} />
+              <Route path="sumago-users" element={<SumagoUsers />} />
               <Route path="courses" element={<Courses />} />
               <Route path="duration-master" element={<DurationMaster />} />
               <Route path="plans" element={<Plans />} />
@@ -80,6 +83,7 @@ export default function AppRoutes() {
               <Route path="internal-plans" element={<InternalPlans />} />
               <Route path="internal-plans/new" element={<InternalPlanForm />} />
               <Route path="internal-plans/:id" element={<InternalPlanForm />} />
+              <Route path="course-names" element={<CourseNames />} />
             </Route>
             <Route path="/*" element={<MainLayout />} />
           </Routes>

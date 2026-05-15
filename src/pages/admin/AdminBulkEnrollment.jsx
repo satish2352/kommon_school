@@ -276,9 +276,18 @@ export default function AdminBulkEnrollment() {
               disabled={coursesLoading}
             >
               <option value="">{coursesLoading ? 'Loading...' : '— Select a course —'}</option>
-              {courseList.map((c) => (
-                <option key={c.id} value={String(c.id)}>{c.nameOfCourseAsGroup}</option>
-              ))}
+              {/* Each course is a (Name × Duration) offering; show both so
+                  the same name doesn't appear N times as visual duplicates. */}
+              {[...courseList]
+                .sort((a, b) => {
+                  const n = (a.nameOfCourseAsGroup ?? '').localeCompare(b.nameOfCourseAsGroup ?? '');
+                  return n !== 0 ? n : (a.duration?.sortOrder ?? 0) - (b.duration?.sortOrder ?? 0);
+                })
+                .map((c) => (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.nameOfCourseAsGroup}{c.duration?.label ? ` — ${c.duration.label}` : ''}
+                  </option>
+                ))}
             </Select>
 
             {/* Internal Plan */}

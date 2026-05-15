@@ -15,13 +15,6 @@ import {
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
 
-const DURATIONS = [
-  { value: '1_MONTH',   label: '1 Month'   },
-  { value: '3_MONTHS',  label: '3 Months'  },
-  { value: '6_MONTHS',  label: '6 Months'  },
-  { value: '12_MONTHS', label: '12 Months' },
-];
-
 const EMPTY_COUPON = {
   code:          '',
   discountType:  'PERCENT',
@@ -32,9 +25,14 @@ const EMPTY_COUPON = {
   status:        'ACTIVE',
 };
 
+// The plan's contract `duration` enum (1_MONTH / 3_MONTHS / 6_MONTHS / 12_MONTHS)
+// is still required by the Prisma schema, but no longer shown in the form.
+// It defaults to 6_MONTHS on create; preserved as-is on edit.
+const DEFAULT_PLAN_DURATION = '6_MONTHS';
+
 const EMPTY_FORM = {
   name:        '',
-  duration:    '',
+  duration:    DEFAULT_PLAN_DURATION,
   description: '',
   courseId:    '',
   status:      'ACTIVE',
@@ -52,10 +50,6 @@ function validateForm(form) {
     e.name = 'Plan name must be at least 2 characters';
   } else if (name.length > 200) {
     e.name = 'Plan name must be at most 200 characters';
-  }
-
-  if (!form.duration) {
-    e.duration = 'Duration is required';
   }
 
   if (!form.courseId) {
@@ -243,7 +237,7 @@ export default function InternalPlanForm() {
         setPlanRefId(plan.refId ?? '');
         setForm({
           name:        plan.name ?? '',
-          duration:    plan.duration ?? '',
+          duration:    plan.duration ?? DEFAULT_PLAN_DURATION,
           description: plan.description ?? '',
           courseId:    plan.courseId != null ? String(plan.courseId) : '',
           status:      plan.status ?? 'ACTIVE',
@@ -406,33 +400,33 @@ export default function InternalPlanForm() {
             error={formErrors.name}
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Select
-              label="Course"
-              required
-              value={form.courseId}
-              onChange={(e) => { setField('courseId', e.target.value); }}
-              error={formErrors.courseId}
-            >
-              <option value="">Select a course...</option>
-              {courseOptions.map((c) => (
-                <option key={c.id} value={String(c.id)}>{c.nameOfCourseAsGroup}</option>
-              ))}
-            </Select>
-
-            <Select
-              label="Duration"
-              required
-              value={form.duration}
-              onChange={(e) => setField('duration', e.target.value)}
-              error={formErrors.duration}
-            >
-              <option value="">Select duration...</option>
-              {DURATIONS.map((d) => (
-                <option key={d.value} value={d.value}>{d.label}</option>
-              ))}
-            </Select>
-          </div>
+          <Select
+            label="Course"
+            required
+            value={form.courseId}
+            onChange={(e) => { setField('courseId', e.target.value); }}
+            error={formErrors.courseId}
+          >
+            <option value="">Select a course...</option>
+            {/* Each course offering is a unique (Course Name × Duration) row,
+                so the label includes both — otherwise the same name appears
+                N times (once per duration variant) and looks like duplicates. */}
+            {[...courseOptions]
+              .sort((a, b) => {
+                const n = (a.nameOfCourseAsGroup ?? '').localeCompare(b.nameOfCourseAsGroup ?? '');
+                if (n !== 0) return n;
+                return (a.duration?.sortOrder ?? 0) - (b.duration?.sortOrder ?? 0);
+              })
+              .map((c) => {
+                const durLabel = c.duration?.label ? ` — ${c.duration.label}` : '';
+                const feeLabel = c.courseFee != null ? ` · ₹${Number(c.courseFee).toLocaleString('en-IN')}` : '';
+                return (
+                  <option key={c.id} value={String(c.id)}>
+                    {c.nameOfCourseAsGroup}{durLabel}{feeLabel}
+                  </option>
+                );
+              })}
+          </Select>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

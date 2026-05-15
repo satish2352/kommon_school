@@ -40,7 +40,7 @@ const formatFee = (fee) =>
     : '—';
 
 /* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const COL_COUNT = 8;
+const COL_COUNT = 7;
 
 function SkeletonRows({ count = 7 }) {
   return (
@@ -50,7 +50,6 @@ function SkeletonRows({ count = 7 }) {
           <Td><Skeleton w="w-48" /></Td>
           <Td><Skeleton w="w-32" /></Td>
           <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
           <Td><Skeleton w="w-24" /></Td>
           <Td><Skeleton w="w-16" /></Td>
           <Td><Skeleton w="w-14" /></Td>
@@ -202,9 +201,16 @@ export default function InternalPlans() {
             className="w-auto"
           >
             <option value="">All courses</option>
-            {courseOptions.map((c) => (
-              <option key={c.id} value={String(c.id)}>{c.nameOfCourseAsGroup}</option>
-            ))}
+            {[...courseOptions]
+              .sort((a, b) => {
+                const n = (a.nameOfCourseAsGroup ?? '').localeCompare(b.nameOfCourseAsGroup ?? '');
+                return n !== 0 ? n : (a.duration?.sortOrder ?? 0) - (b.duration?.sortOrder ?? 0);
+              })
+              .map((c) => (
+                <option key={c.id} value={String(c.id)}>
+                  {c.nameOfCourseAsGroup}{c.duration?.label ? ` — ${c.duration.label}` : ''}
+                </option>
+              ))}
           </Select>
           <Select
             value={statusFilter}
@@ -230,7 +236,7 @@ export default function InternalPlans() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Plan Name', 'Ref ID', 'Course', 'Duration', 'Price', 'Coupons', 'Status', 'Actions'].map((h) => (
+              {['Plan Name', 'Ref ID', 'Course', 'Price', 'Coupons', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
@@ -253,7 +259,9 @@ export default function InternalPlans() {
 
             {!loading && !error && plans.map((p, idx) => {
               const linkedCourse = courseOptions.find((c) => c.id === p.courseId);
-              const courseName = linkedCourse?.nameOfCourseAsGroup ?? `Course #${p.courseId}`;
+              const courseName = linkedCourse
+                ? `${linkedCourse.nameOfCourseAsGroup}${linkedCourse.duration?.label ? ` · ${linkedCourse.duration.label}` : ''}`
+                : `Course #${p.courseId}`;
               const activeCoupons = (p.coupons ?? []).filter((c) => c.status === 'ACTIVE').length;
               return (
                 <Tr key={p.id} striped={idx % 2 === 1}>
@@ -270,11 +278,6 @@ export default function InternalPlans() {
                   </Td>
                   <Td className="text-slate-600 text-sm max-w-[160px] truncate">
                     {courseName}
-                  </Td>
-                  <Td>
-                    <Badge variant="info">
-                      {DURATION_LABELS[p.duration] ?? p.duration}
-                    </Badge>
                   </Td>
                   <Td className="text-slate-900 font-semibold">
                     {formatFee(linkedCourse?.courseFee)}

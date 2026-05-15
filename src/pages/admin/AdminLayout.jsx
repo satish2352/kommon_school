@@ -129,11 +129,15 @@ const NAV_SECTIONS = [
     label: 'Operations',
     items: [
       { to: '/admin/enrollments', end: true, label: 'Enrollments', icon: Icon.users },
-      { to: '/admin/enrollments/new', label: 'New Enrollment', icon: Icon.userPlus },
-      { to: '/admin/enrollments/bulk', label: 'Bulk Upload (CSV)', icon: Icon.upload },
       { to: '/admin/payments', label: 'Payments', icon: Icon.card },
       { to: '/admin/follow-ups', label: 'Follow-ups', icon: Icon.phone },
-      { to: '/admin/webhooks', label: 'Webhooks', icon: Icon.webhook },
+    ],
+  },
+  {
+    label: 'Sumago Integration',
+    items: [
+      { to: '/admin/webhooks',     label: 'Provision User (POST)', icon: Icon.webhook },
+      { to: '/admin/sumago-users', label: 'Fetch Users (GET)',     icon: Icon.users },
     ],
   },
   {
@@ -144,7 +148,10 @@ const NAV_SECTIONS = [
         items: [
           { to: '/admin/internal-plans', end: true, label: 'Internal Plans', icon: Icon.fileText },
           { to: '/admin/courses', label: 'Courses', icon: Icon.book },
+          { to: '/admin/course-names', label: 'Course Names', icon: Icon.book },
           { to: '/admin/duration-master', label: 'Duration Master', icon: Icon.clock },
+          { to: '/admin/enrollments/new', label: 'New Enrollment', icon: Icon.userPlus },
+          { to: '/admin/enrollments/bulk', label: 'Bulk Upload (CSV)', icon: Icon.upload },
         ],
       },
       {

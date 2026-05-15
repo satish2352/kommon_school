@@ -89,4 +89,17 @@ export const webhookAdminService = {
    * @param {{ enrollment, order, rzpResponse }} sample — matching TEST_SAMPLES shape
    */
   sendTestWebhook: (sample) => api.post('/webhooks/test', sample),
+
+  /**
+   * Check whether the Sumago integration is configured on the backend.
+   * Returns { enabled: boolean, baseUrl: string|null }. NEVER returns the token.
+   */
+  getSumagoConfig: () => api.get('/webhooks/sumago/config'),
+
+  /**
+   * Proxy fetch users from the Sumago "Retrieve User Data & Status" endpoint.
+   * The Bearer token lives only on the backend.
+   * Returns: { status, organizationCode, totalUsers, users: [...] }.
+   */
+  fetchSumagoUsers: () => api.get('/webhooks/sumago/users'),
 };

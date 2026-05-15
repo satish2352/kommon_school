@@ -12,6 +12,7 @@ import { PageHeader, Card, StatCard, Button, Skeleton, Pagination } from '../../
 // ---------------------------------------------------------------------------
 const TEST_SAMPLES = [
   {
+    plan: 'NOVA2025_30',
     enrollment: {
       id: 'test_enr_001',
       enrollmentId: 'KOM-TEST-001',
@@ -34,6 +35,7 @@ const TEST_SAMPLES = [
     },
   },
   {
+    plan: 'NOVA2025_30',
     enrollment: {
       id: 'test_enr_002',
       enrollmentId: 'KOM-TEST-002',
@@ -56,6 +58,7 @@ const TEST_SAMPLES = [
     },
   },
   {
+    plan: 'NOVA2025_30',
     enrollment: {
       id: 'test_enr_003',
       enrollmentId: 'KOM-TEST-003',
@@ -284,6 +287,18 @@ export default function Webhooks() {
   const [statusFilter, setStatusFilter] = useState('');
   const [autoRefresh, setAutoRefresh]   = useState(false);
 
+  // ── Sumago config (for the POST endpoint info banner) ───────────────────────
+  // GET-side UI lives on its own /admin/sumago-users page.
+  const [sumagoCfg, setSumagoCfg] = useState(null);  // { enabled, baseUrl }
+
+  useEffect(() => {
+    let cancelled = false;
+    webhookAdminService.getSumagoConfig()
+      .then((cfg) => { if (!cancelled) setSumagoCfg(cfg); })
+      .catch(() => { if (!cancelled) setSumagoCfg({ enabled: false, baseUrl: null }); });
+    return () => { cancelled = true; };
+  }, []);
+
   // ── Load data from backend ────────────────────────────────────────────────
   const loadData = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setLoading(true);
@@ -450,6 +465,28 @@ export default function Webhooks() {
           accentClass="from-slate-400 to-slate-500"
         />
       </div>
+
+      {/* ── Sumago POST endpoint banner (GET lives on its own page) ────────── */}
+      <Card title="Sumago — Provision User (POST)">
+        <div className="flex flex-wrap items-center gap-3">
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${
+              sumagoCfg?.enabled
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-amber-50 border-amber-200 text-amber-700'
+            }`}
+          >
+            <span className={`w-1.5 h-1.5 rounded-full ${sumagoCfg?.enabled ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+            {sumagoCfg?.enabled ? 'Configured' : 'Not configured'}
+          </span>
+          <code className="text-xs text-slate-700 bg-slate-100 px-2 py-1 rounded font-mono">
+            POST {(sumagoCfg?.baseUrl ?? '—')}/integrations/provision-user
+          </code>
+          <span className="text-xs text-slate-500">
+            Fired automatically after each successful payment-verify. Bearer auth.
+          </span>
+        </div>
+      </Card>
 
       {/* ── Status filter pills ───────────────────────────────────────────── */}
       <div className="flex gap-2 flex-wrap">

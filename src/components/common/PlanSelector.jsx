@@ -42,7 +42,11 @@ const TIER_STYLES = {
 const inr = (amount) =>
   `₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
-export default function PlanSelector({ plans = [], value, onChange, defaultDuration = 6, onCompare }) {
+// Default to the 1-month plan so new users see the entry-level price first.
+// Mirrors the Pricing Page default so the two surfaces feel consistent.
+// Callers may still override via the `defaultDuration` prop (e.g. when a
+// preselected plan from the Pricing Page has a specific duration).
+export default function PlanSelector({ plans = [], value, onChange, defaultDuration = 1, onCompare }) {
   const [duration, setDuration] = useState(defaultDuration);
 
   // Find pricing for a given plan + selected duration
@@ -56,26 +60,45 @@ export default function PlanSelector({ plans = [], value, onChange, defaultDurat
 
   return (
     <div className="space-y-4">
-      {/* ── Duration tabs ── */}
-      <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-        {DURATION_TABS.map((tab) => (
-          <button
-            key={tab.months}
-            type="button"
-            onClick={() => setDuration(tab.months)}
-            className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
-              duration === tab.months
-                ? 'bg-white text-indigo-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Header (heading + 3-step indicator) lives in the parent modal's
+          sticky header now — see EnrollModal.jsx. Keeping it here would
+          duplicate the same content twice in the same viewport. */}
+
+      {/* ── Duration tabs — polished to match the Pricing Page treatment:
+            active tab gets a white pill with shadow + slight scale + ring,
+            inactive tabs hover-affordant only when their duration has a
+            plan, disabled when no plan exists at that duration. Larger
+            touch targets via py-2 so mobile taps are comfortable. ── */}
+      <div
+        role="tablist"
+        aria-label="Choose plan duration"
+        className="flex gap-1 bg-slate-100 rounded-xl p-1.5 shadow-inner"
+      >
+        {DURATION_TABS.map((tab) => {
+          const isActive = duration === tab.months;
+          return (
+            <button
+              key={tab.months}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setDuration(tab.months)}
+              className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
+                isActive
+                  ? 'bg-white text-indigo-700 shadow-md scale-[1.02] ring-1 ring-indigo-100'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
+              }`}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {/* ── Plan cards ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      {/* ── Plan cards — key={duration} forces a remount on tab change so
+            the existing `animate-fade-in` keyframe smoothly transitions
+            the new prices in without an animation library. ── */}
+      <div key={duration} className="grid grid-cols-1 md:grid-cols-3 gap-3 animate-fade-in">
         {orderedPlans.map((plan) => {
           const pricing = getPricing(plan);
           const style   = TIER_STYLES[plan.tier] ?? TIER_STYLES.SILVER;

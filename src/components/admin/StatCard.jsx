@@ -18,13 +18,23 @@ export function StatCard({
   accentClass = 'from-brand-500 to-brand-700',
 }) {
   return (
+    // h-full       — fill the grid cell vertically so all cards in the
+    //                row reach the height of the tallest one.
+    // flex flex-col — column layout so we can use mt-auto to push the
+    //                value+hint block to a consistent vertical position
+    //                regardless of how many lines the label wraps to.
     <div
       className="bg-white rounded-xl border p-5 shadow-card
-        hover:shadow-card-hover transition-shadow duration-200 group"
+        hover:shadow-card-hover transition-shadow duration-200 group
+        h-full flex flex-col"
       style={{ borderColor: 'var(--admin-border)' }}
     >
       <div className="flex items-start justify-between gap-3">
-        <div className="text-[13px] font-medium text-slate-500 leading-snug flex-1 min-w-0">
+        {/* Label slot reserves space for up to 2 lines so a short label
+            ("Revenue (7d)") and a wrapped label ("Today's enrollments")
+            both occupy the same vertical box — keeps the icon row and
+            value baseline aligned across cards. */}
+        <div className="text-[13px] font-medium text-slate-500 leading-snug flex-1 min-w-0 min-h-[2.6em]">
           {label}
         </div>
         {icon != null && (
@@ -37,12 +47,19 @@ export function StatCard({
         )}
       </div>
 
-      <div className="mt-3 text-[26px] font-bold text-slate-900 tabular-nums tracking-tight leading-none">
-        {value ?? '—'}
-      </div>
+      {/* mt-auto pulls the value+hint stack to the bottom so every card
+          shows its number on the same Y line. Combined with the fixed
+          label min-height above, this gives a perfectly aligned grid. */}
+      <div className="mt-auto">
+        <div className="mt-3 text-[26px] font-bold text-slate-900 tabular-nums tracking-tight leading-none">
+          {value ?? '—'}
+        </div>
 
-      {(delta != null || hint) && (
-        <div className="flex items-center gap-2 mt-2 flex-wrap">
+        {/* Hint row always renders with a fixed min-height (even when
+            empty) so cards with and without a hint keep the same
+            overall height. Otherwise a hintless card would look
+            visibly shorter inside the same row. */}
+        <div className="flex items-center gap-2 mt-2 flex-wrap min-h-[18px]">
           {delta != null && (
             <span
               className={`inline-flex items-center gap-0.5 text-[11px] font-medium px-1.5 py-0.5 rounded-full ${
@@ -65,7 +82,7 @@ export function StatCard({
           )}
           {hint && <span className="text-[11px] text-slate-500">{hint}</span>}
         </div>
-      )}
+      </div>
     </div>
   );
 }

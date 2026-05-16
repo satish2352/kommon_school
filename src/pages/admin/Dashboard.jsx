@@ -60,14 +60,26 @@ const PAYMENT_COLORS = {
 
 /* ─── Skeleton helpers ───────────────────────────────────────────────────── */
 function StatCardSkeleton() {
+  // Mirrors the real StatCard layout:
+  //   - h-full + flex flex-col so the skeleton fills its grid cell
+  //   - label area min-h-[2.6em] matches the real card so the skeleton
+  //     and the loaded card occupy the same vertical box (no layout
+  //     shift when data resolves).
   return (
-    <div className="bg-white rounded-xl border p-5 shadow-card" style={{ borderColor: 'var(--admin-border, #E5E7EB)' }}>
+    <div
+      className="bg-white rounded-xl border p-5 shadow-card h-full flex flex-col"
+      style={{ borderColor: 'var(--admin-border, #E5E7EB)' }}
+    >
       <div className="flex items-start justify-between mb-3">
-        <Skeleton w="w-24" h="h-3" />
+        <div className="flex-1 min-w-0 min-h-[2.6em]">
+          <Skeleton w="w-24" h="h-3" />
+        </div>
         <Skeleton w="w-10" h="h-10" className="rounded-lg shrink-0" />
       </div>
-      <Skeleton w="w-20" h="h-7" className="mt-3" />
-      <Skeleton w="w-24" h="h-3" className="mt-2" />
+      <div className="mt-auto">
+        <Skeleton w="w-20" h="h-7" className="mt-3" />
+        <Skeleton w="w-24" h="h-3" className="mt-2" />
+      </div>
     </div>
   );
 }
@@ -352,12 +364,18 @@ export default function Dashboard() {
 
       {/* ── KPI cards ─────────────────────────────────────────────────────── */}
       {anyLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-stretch">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-full"><StatCardSkeleton /></div>
+          ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div data-aos="fade-up" data-aos-delay="0">
+        // items-stretch (grid default) makes the rows take the tallest
+        // child's height; the per-cell `h-full` on each AOS wrapper is
+        // what lets the StatCard inside fill that height. Without the
+        // h-full on the wrapper, the StatCard collapses to its content.
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-stretch">
+          <div className="h-full" data-aos="fade-up" data-aos-delay="0">
             <StatCard
               label="Today's enrollments"
               value={fmtNum(summary.data?.today?.enrollments)}
@@ -370,7 +388,7 @@ export default function Dashboard() {
               }
             />
           </div>
-          <div data-aos="fade-up" data-aos-delay="60">
+          <div className="h-full" data-aos="fade-up" data-aos-delay="60">
             <StatCard
               label="Today's revenue"
               value={inr(summary.data?.today?.revenuePaise)}
@@ -383,7 +401,7 @@ export default function Dashboard() {
               }
             />
           </div>
-          <div data-aos="fade-up" data-aos-delay="120">
+          <div className="h-full" data-aos="fade-up" data-aos-delay="120">
             <StatCard
               label="Pending payments"
               value={fmtNum(summary.data?.pending?.payments)}
@@ -395,7 +413,7 @@ export default function Dashboard() {
               }
             />
           </div>
-          <div data-aos="fade-up" data-aos-delay="180">
+          <div className="h-full" data-aos="fade-up" data-aos-delay="180">
             <StatCard
               label="Pending follow-ups"
               value={fmtNum(summary.data?.pending?.followUps)}
@@ -407,7 +425,7 @@ export default function Dashboard() {
               }
             />
           </div>
-          <div data-aos="fade-up" data-aos-delay="240">
+          <div className="h-full" data-aos="fade-up" data-aos-delay="240">
             <StatCard
               label="Revenue (7d)"
               value={inr(totalRevenue7d)}
@@ -420,7 +438,7 @@ export default function Dashboard() {
               }
             />
           </div>
-          <div data-aos="fade-up" data-aos-delay="300">
+          <div className="h-full" data-aos="fade-up" data-aos-delay="300">
             <StatCard
               label="Conversion rate"
               value={`${conversionRate}%`}

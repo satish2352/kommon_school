@@ -926,15 +926,18 @@ export default function AdminEnrollmentForm() {
           {selectedPlan && feeBreakdown && (
             <Card>
               <h2 className="text-sm font-semibold text-slate-700 mb-3">Plan & Pricing</h2>
+              {/* Minimal preview only — the full breakdown (sections,
+                  payment history, status pills) lives on the Enrollment
+                  Details drawer reachable from the Enrollments list. */}
               <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 {[
-                  ['Course',         selectedCourse?.nameOfCourseAsGroup ?? '—'],
-                  ['Plan',           selectedPlan.name],
-                  ['Duration',       DURATION_LABELS[selectedPlan.duration] ?? selectedPlan.duration],
-                  ['Base Price',     inr(feeBreakdown.basePrice)],
-                  ['Coupon',         selectedCouponCode || '—'],
-                  ['Discount',       feeBreakdown.discount > 0 ? `− ${inr(feeBreakdown.discount)}` : '—'],
-                  ['Final Payable',  inr(feeBreakdown.finalAmount)],
+                  ['Course',        selectedCourse?.nameOfCourseAsGroup ?? '—'],
+                  ['Plan',          selectedPlan.name],
+                  ['Duration',      DURATION_LABELS[selectedPlan.duration] ?? selectedPlan.duration],
+                  ['Base Price',    inr(feeBreakdown.basePrice)],
+                  ['Coupon',        selectedCouponCode || '—'],
+                  ['Discount',      feeBreakdown.discount > 0 ? `− ${inr(feeBreakdown.discount)}` : '—'],
+                  ['Final Payable', inr(feeBreakdown.finalAmount)],
                 ].map(([k, v]) => (
                   <div key={k}>
                     <dt className="text-xs text-slate-400">{k}</dt>

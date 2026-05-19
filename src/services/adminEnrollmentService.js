@@ -13,9 +13,25 @@ const BASE_URL =
 
 export const adminEnrollmentService = {
   /**
-   * Manually create an enrollment (admin-side).
-   * @param {object} body
-   * @returns {Promise<{ enrollment: object, webhookDelivery: object }>}
+   * Admin "New Enrollment" wizard, internal-flow endpoint.
+   * Backend recomputes pricing from internalPlanId + courseId + couponCode.
+   * Fee values in the body are silently dropped by the validator.
+   *
+   * Coupon usage-limit error code: 'COUPON_USAGE_LIMIT_REACHED'.
+   *
+   * @param {{
+   *   name, email, phone, role,
+   *   education?, readiness?, source?,
+   *   courseId, internalPlanId, internalCouponCode?, notes?,
+   * }} body
+   * @returns {Promise<{ enrollment, webhookDelivery }>}
+   */
+  createInternal: (body) => api.post('/admin/enrollments/internal', body),
+
+  /**
+   * Manually create an enrollment (admin-side, legacy planTier path).
+   * Kept for any code still posting the old shape; new code should use
+   * createInternal().
    */
   createManual: (body) => api.post('/admin/enrollments/manual', body),
 

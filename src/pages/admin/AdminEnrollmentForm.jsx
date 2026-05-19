@@ -6,6 +6,14 @@ import { internalPlansService } from '../../services/internalPlansService';
 import { courseService } from '../../services/courseService';
 import { calculate as calculateFee } from '../../services/feeCalculationService';
 import {
+  sanitizeName,
+  sanitizePhone,
+  sanitizeEmail,
+  validateName,
+  validatePhone,
+  validateEmail,
+} from '../../services/validation';
+import {
   PageHeader,
   Card,
   Button,
@@ -121,17 +129,22 @@ const EMPTY = {
 
 /* ─── Validation ─────────────────────────────────────────────────────────── */
 function validateStep0(data) {
+  // Same validator suite used by the public website enrollment modal so
+  // that admin + public flows enforce identical rules:
+  //   - Full Name: letters + single spaces only (regex), 2..100 chars
+  //   - Email:     local@domain.tld with TLD ≥ 2 chars
+  //   - Phone:     10 digits, must START with 6, 7, 8, or 9 (TRAI mobile)
+  // The sanitizers in onChange handlers already strip illegal characters
+  // at keystroke time; these validators catch anything that slipped past
+  // (e.g. paste from clipboard, autofill) and provide the user-facing
+  // error message.
   const e = {};
-  const name = data.name.trim();
-  if (!name) e.name = 'Full name is required';
-  else if (name.length < 2) e.name = 'Name must be at least 2 characters';
-  else if (name.length > 200) e.name = 'Name must be at most 200 characters';
-
-  if (!data.email.trim()) e.email = 'Email is required';
-  else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) e.email = 'Enter a valid email address';
-
-  if (!data.phone.trim()) e.phone = 'Phone number is required';
-  else if (!/^\d{10}$/.test(data.phone)) e.phone = 'Enter a valid 10-digit phone number';
+  const nameErr  = validateName(data.name);
+  const emailErr = validateEmail(data.email);
+  const phoneErr = validatePhone(data.phone);
+  if (nameErr)  e.name  = nameErr;
+  if (emailErr) e.email = emailErr;
+  if (phoneErr) e.phone = phoneErr;
 
   if (!data.role) e.role = 'Please select a role';
 
@@ -177,7 +190,15 @@ function StepIndicator({ number, label, sublabel, complete, active }) {
 }
 
 /* ─── Section label with numbered chip ─────────────────────────────────── */
+/**
+ * Renders the hint as a red "Required" pill when hint === 'Required',
+ * matching what the user asked for: instead of a barely-visible "*" or
+ * gray text, the obligation is unambiguous. Any other hint string still
+ * renders as small slate text (so 'Optional', 'Pick a plan first', etc.
+ * keep their existing low-emphasis treatment).
+ */
 function SectionLabel({ n, title, hint, status }) {
+  const isRequired = hint === 'Required';
   return (
     <div className="flex items-center gap-2">
       <span
@@ -192,7 +213,15 @@ function SectionLabel({ n, title, hint, status }) {
         {status === 'done' ? '✓' : n}
       </span>
       <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-      {hint && <span className="text-xs text-slate-400 ml-1">{hint}</span>}
+      {hint && (
+        isRequired ? (
+          <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full border border-rose-200 bg-rose-50 text-rose-700 text-[10px] font-bold uppercase tracking-wide">
+            Required
+          </span>
+        ) : (
+          <span className="text-xs text-slate-400 ml-1">{hint}</span>
+        )
+      )}
     </div>
   );
 }
@@ -457,6 +486,26 @@ export default function AdminEnrollmentForm() {
     } else if (step === 1) {
       const e = validateStep1({ courseId: selectedCourseId, internalPlanId: selectedPlanId });
       if (Object.keys(e).length > 0) { setErrors(e); return; }
+
+      // Block the step transition when the user has picked a coupon that
+      // the server has flagged invalid (most commonly: usageLimit hit).
+      // calculateFee re-runs on every coupon/plan change, so the time-
+      // varying state (usedCount, expiry) is fresh when we check it here.
+      // The final submit also re-validates server-side, but failing fast
+      // at this step avoids the "go to Review, click Submit, get an
+      // error, come back" round-trip.
+      if (selectedCouponCode && feeBreakdown && feeBreakdown.couponValid === false) {
+        const reason = feeBreakdown.couponReason || 'Coupon is invalid';
+        const userMessage = reason === 'Coupon usage limit reached'
+          ? 'This coupon’s usage limit has been reached. Pick another coupon or continue without one.'
+          : `Coupon cannot be applied: ${reason}.`;
+        toast.error(userMessage);
+        // Surface as inline error too, so users who dismiss toasts still
+        // see why the navigation didn't advance.
+        setErrors({ _coupon: userMessage });
+        return;
+      }
+
       setErrors({});
       setStep(2);
     }
@@ -479,47 +528,51 @@ export default function AdminEnrollmentForm() {
 
     setSubmitting(true);
     try {
+      // Server-authoritative payload. We deliberately do NOT send any
+      // pricing values — the backend re-resolves base / discount / final
+      // from internalPlanId + courseId + couponCode and persists the
+      // snapshot. Sending fee values would be misleading (validator
+      // drops them) and a tampering vector.
       const body = {
-        name:      data.name.trim(),
-        email:     data.email.trim(),
-        phone:     data.phone.trim(),
-        role:      ROLE_MAP[data.role],
-        candidateType:      'INTERNAL',
-        courseId:           Number(selectedCourseId),
-        internalPlanId:     Number(selectedPlanId),
-        ...(selectedPlan?.refId ? { internalPlanRefId: selectedPlan.refId } : {}),
+        name:           data.name.trim(),
+        email:          data.email.trim(),
+        phone:          data.phone.trim(),
+        role:           ROLE_MAP[data.role],
+        courseId:       Number(selectedCourseId),
+        internalPlanId: Number(selectedPlanId),
         ...(selectedCouponCode ? { internalCouponCode: selectedCouponCode } : {}),
-        ...(feeBreakdown
-          ? {
-              internalFeeBreakdown: {
-                basePrice:   feeBreakdown.basePrice,
-                discount:    feeBreakdown.discount,
-                finalAmount: feeBreakdown.finalAmount,
-              },
-            }
-          : {}),
         ...(data.education ? { education: EDUCATION_MAP[data.education] } : {}),
         ...(data.readiness ? { readiness: READINESS_MAP[data.readiness] } : {}),
         ...(data.source    ? { source: SOURCE_MAP[data.source] }          : {}),
         ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
-        // Compat shim — remove when backend is updated to accept internalPlanId natively.
-        planTier:       'GOLD',
-        durationMonths: DURATION_TO_MONTHS[selectedPlan?.duration] ?? 6,
       };
 
-      const resp = await adminEnrollmentService.createManual(body);
+      const resp = await adminEnrollmentService.createInternal(body);
       setResult(resp);
     } catch (err) {
       if (err.details) console.error('[AdminEnrollmentForm] API validation details:', err.details);
-      const detailMsg =
-        Array.isArray(err.details) && err.details.length > 0
-          ? err.details.map((d) => `${d.field ?? ''}: ${d.message ?? d}`).join('; ')
-          : null;
-      toast.error(
-        detailMsg
-          ? `Validation failed — ${detailMsg}`
-          : (err.message ?? 'Failed to create enrollment. Please try again.'),
-      );
+      // Distinct toast for coupon-usage-limit-reached so admins
+      // immediately understand why and can pick another coupon.
+      if (err.code === 'COUPON_USAGE_LIMIT_REACHED') {
+        toast.error(err.message || 'Coupon usage limit has been reached. Please choose another coupon or continue without one.');
+        // Pop them back to step 1 (plan/coupon picker) so they can
+        // either clear the coupon selection or pick a different one
+        // without losing their student details.
+        setStep(1);
+      } else if (err.code === 'COUPON_INVALID') {
+        toast.error(err.message || 'This coupon is not valid.');
+        setStep(1);
+      } else {
+        const detailMsg =
+          Array.isArray(err.details) && err.details.length > 0
+            ? err.details.map((d) => `${d.field ?? ''}: ${d.message ?? d}`).join('; ')
+            : null;
+        toast.error(
+          detailMsg
+            ? `Validation failed — ${detailMsg}`
+            : (err.message ?? 'Failed to create enrollment. Please try again.'),
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -645,7 +698,18 @@ export default function AdminEnrollmentForm() {
                 required
                 value={data.name}
                 placeholder="e.g. Priya Sharma"
-                onChange={(e) => { set('name', e.target.value); setErrors((prev) => ({ ...prev, name: '' })); }}
+                autoComplete="name"
+                autoCapitalize="words"
+                spellCheck={false}
+                /* sanitizeName strips anything that isn't a letter or space
+                   and collapses consecutive spaces, so the field can never
+                   contain digits / symbols even if the user pastes them. */
+                onChange={(e) => { set('name', sanitizeName(e.target.value)); setErrors((prev) => ({ ...prev, name: '' })); }}
+                onBlur={() => {
+                  // Trim trailing space when focus leaves so the stored
+                  // value is canonical without disrupting in-progress typing.
+                  if (data.name !== data.name.trim()) set('name', data.name.trim());
+                }}
                 error={errors.name}
               />
               <Input
@@ -654,7 +718,14 @@ export default function AdminEnrollmentForm() {
                 type="email"
                 value={data.email}
                 placeholder="you@email.com"
-                onChange={(e) => { set('email', e.target.value); setErrors((prev) => ({ ...prev, email: '' })); }}
+                autoComplete="email"
+                inputMode="email"
+                spellCheck={false}
+                maxLength={255}
+                /* sanitizeEmail strips whitespace anywhere (paste from
+                   email clients often appends trailing spaces). The strict
+                   regex (TLD ≥ 2 chars) runs at validation time. */
+                onChange={(e) => { set('email', sanitizeEmail(e.target.value)); setErrors((prev) => ({ ...prev, email: '' })); }}
                 error={errors.email}
               />
             </div>
@@ -665,8 +736,16 @@ export default function AdminEnrollmentForm() {
               type="tel"
               value={data.phone}
               placeholder="9876543210"
+              autoComplete="tel"
+              inputMode="numeric"
+              pattern="[6-9][0-9]{9}"
               maxLength={10}
-              onChange={(e) => { set('phone', e.target.value.replace(/\D/g, '').slice(0, 10)); setErrors((prev) => ({ ...prev, phone: '' })); }}
+              /* sanitizePhone strips non-digits, paste-strips leading "+91"
+                 / "091" country codes, truncates to 10. The 6/7/8/9 leading-
+                 digit rule is enforced at validation time so the keystroke
+                 isn't silently rejected if the user types e.g. "5" by
+                 accident (the inline error explains the rule instead). */
+              onChange={(e) => { set('phone', sanitizePhone(e.target.value)); setErrors((prev) => ({ ...prev, phone: '' })); }}
               error={errors.phone}
             />
 
@@ -857,10 +936,56 @@ export default function AdminEnrollmentForm() {
                             : `${inr(c.discountValue)} off`
                         }
                         selected={selectedCouponCode === c.code}
-                        onClick={() => setSelectedCouponCode(c.code)}
+                        onClick={() => {
+                          // Selecting a new coupon clears the prior _coupon
+                          // error; calculateFee will re-evaluate this one
+                          // and the error returns only if the new pick is
+                          // also invalid.
+                          setSelectedCouponCode(c.code);
+                          setErrors((prev) => ({ ...prev, _coupon: '' }));
+                        }}
                       />
                     ))}
                   </div>
+                )}
+
+                {/* Coupon validity banner — prominent inline error.
+                    Shown when calculateFee says the picked coupon is
+                    invalid for any reason. Limit-reached gets a friendlier
+                    rephrase + a clear next-action hint; other reasons
+                    surface the server's reason verbatim. */}
+                {selectedCouponCode && feeBreakdown?.couponValid === false && (
+                  <div className="mt-3 flex items-start gap-3 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200">
+                    <svg className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-rose-800">
+                        {feeBreakdown.couponReason === 'Coupon usage limit reached'
+                          ? `Coupon ${selectedCouponCode} is no longer available`
+                          : `Coupon ${selectedCouponCode} cannot be applied`}
+                      </div>
+                      <p className="text-xs text-rose-700 mt-0.5 leading-relaxed">
+                        {feeBreakdown.couponReason === 'Coupon usage limit reached'
+                          ? 'This coupon’s usage limit has been reached. Pick another coupon below, or click "No coupon" to continue at the full price.'
+                          : (feeBreakdown.couponReason || 'This coupon cannot be applied to the selected plan.')}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCouponCode('');
+                          setErrors((prev) => ({ ...prev, _coupon: '' }));
+                        }}
+                        className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rose-700 hover:text-rose-900 underline underline-offset-2"
+                      >
+                        Continue without coupon
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {errors._coupon && !(selectedCouponCode && feeBreakdown?.couponValid === false) && (
+                  <p className="text-rose-600 text-xs mt-1">{errors._coupon}</p>
                 )}
               </div>
             </Card>

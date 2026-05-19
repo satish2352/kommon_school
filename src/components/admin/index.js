@@ -13,3 +13,4 @@ export { Table, Th, Td, Tr } from './Table';
 export { Pagination } from './Pagination';
 export { Skeleton } from './Skeleton';
 export { EmptyState } from './EmptyState';
+export { default as EnrollmentDetailsDrawer } from './EnrollmentDetailsDrawer';

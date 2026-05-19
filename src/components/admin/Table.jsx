@@ -45,13 +45,15 @@ export function Td({ children, align = 'left', className = '' }) {
   );
 }
 
-export function Tr({ children, striped = false, className = '' }) {
+export function Tr({ children, striped = false, className = '', onClick, ...rest }) {
   return (
     <tr
+      onClick={onClick}
       className={`group transition-colors duration-150
         hover:bg-slate-50/70
         ${striped ? 'bg-slate-50/30' : 'bg-white'}
         ${className}`}
+      {...rest}
     >
       {children}
     </tr>

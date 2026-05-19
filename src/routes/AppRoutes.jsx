@@ -11,6 +11,7 @@ import Login from '../pages/Login'
 import AdminLayout from '../pages/admin/AdminLayout'
 import Dashboard from '../pages/admin/Dashboard'
 import Enrollments from '../pages/admin/Enrollments'
+import InternalEnrollments from '../pages/admin/InternalEnrollments'
 import Payments from '../pages/admin/Payments'
 import FollowUps from '../pages/admin/FollowUps'
 import Webhooks from '../pages/admin/Webhooks'
@@ -68,6 +69,7 @@ export default function AppRoutes() {
             >
               <Route index element={<Dashboard />} />
               <Route path="enrollments" element={<Enrollments />} />
+              <Route path="internal-enrollments" element={<InternalEnrollments />} />
               <Route path="enrollments/new" element={<AdminEnrollmentForm />} />
               <Route path="enrollments/bulk" element={<AdminBulkEnrollment />} />
               <Route path="payments" element={<Payments />} />

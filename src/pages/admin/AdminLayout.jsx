@@ -129,6 +129,10 @@ const NAV_SECTIONS = [
     label: 'Operations',
     items: [
       { to: '/admin/enrollments', end: true, label: 'Enrollments', icon: Icon.users },
+      // Dedicated financial-breakdown view for admin-internal enrollments.
+      // Sits alongside the all-enrollments page so the simpler list stays
+      // simple and admins can deep-dive on internal-flow pricing here.
+      { to: '/admin/internal-enrollments', label: 'Internal Enrollments', icon: Icon.fileText },
       { to: '/admin/payments', label: 'Payments', icon: Icon.card },
       { to: '/admin/follow-ups', label: 'Follow-ups', icon: Icon.phone },
     ],

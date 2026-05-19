@@ -10,6 +10,12 @@ const qs = (params) => {
 export const adminService = {
   getDashboard: () => api.get('/admin/dashboard'),
   listEnrollments: (filters) => api.get(`/admin/enrollments${qs(filters)}`),
+  /**
+   * Single-enrollment detail for the InternalEnrollments drawer.
+   * Returns enrollment + internalPlan + course + ALL payments + the
+   * financial snapshot fields.
+   */
+  getEnrollmentById: (id) => api.get(`/admin/enrollments/${encodeURIComponent(id)}`),
   listPayments: (filters) => api.get(`/admin/payments${qs(filters)}`),
   listFailedPayments: (filters) => api.get(`/admin/payments/failed${qs(filters)}`),
   listExternalApiLogs: (filters) => api.get(`/admin/external-api-logs${qs(filters)}`),

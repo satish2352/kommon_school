@@ -423,11 +423,14 @@ export default function SumagoUsers() {
             </div>
           </div>
 
-          {/* Pagination footer — page size + prev/next */}
+          {/* Pagination footer — page size + prev/next.
+              `limit` is required for the "Showing X–Y of Z" range; without
+              it the Pagination component falls back to "0–0 of N". */}
           <Pagination
             page={meta.page}
             totalPages={meta.totalPages}
             total={meta.total}
+            limit={meta.limit}
             onPageChange={setPage}
           />
         </div>

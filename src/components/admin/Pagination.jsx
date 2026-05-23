@@ -70,23 +70,9 @@ export function Pagination({
             <span className="font-semibold text-slate-800">0 results</span>
           )}
         </span>
-        {onLimitChange && limit != null && (
-          <select
-            value={limit}
-            onChange={(e) => onLimitChange(Number(e.target.value))}
-            aria-label="Rows per page"
-            className="px-2.5 h-8 rounded-[0.625rem] border text-[12px] bg-white text-slate-700
-              focus:outline-none focus:ring-2 focus:ring-brand-200 focus:border-brand-500
-              transition-all duration-150"
-            style={borderSty}
-          >
-            {limitOptions.map((n) => (
-              <option key={n} value={n}>
-                {n} / page
-              </option>
-            ))}
-          </select>
-        )}
+        {/* "Rows per page" dropdown intentionally not rendered.
+            Call sites may still pass `onLimitChange` / `limit` but the
+            selector is hidden so the footer stays compact. */}
       </div>
 
       {/* Right side: page navigator */}

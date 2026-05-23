@@ -37,6 +37,9 @@ const EMPTY_FORM = {
   courseId:    '',
   status:      'ACTIVE',
   coupons:     [],
+  // Optional override for the `plan` field sent in the Sumago provision-
+  // user webhook. Blank → backend falls back to SUMAGO_PLAN_CODE env var.
+  sumagoPlanCode: '',
 };
 
 /* ─── Validation ─────────────────────────────────────────────────────────── */
@@ -241,6 +244,7 @@ export default function InternalPlanForm() {
           description: plan.description ?? '',
           courseId:    plan.courseId != null ? String(plan.courseId) : '',
           status:      plan.status ?? 'ACTIVE',
+          sumagoPlanCode: plan.sumagoPlanCode ?? '',
           coupons:     (plan.coupons ?? []).map((c) => ({
             ...c,
             discountValue: String(c.discountValue ?? ''),
@@ -310,6 +314,7 @@ export default function InternalPlanForm() {
         description: form.description.trim() || null,
         courseId:    Number(form.courseId),
         status:      form.status,
+        sumagoPlanCode: form.sumagoPlanCode?.trim() || null,
         coupons:     form.coupons.map((c) => ({
           ...c,
           code:          c.code.trim().toUpperCase(),
@@ -464,6 +469,18 @@ export default function InternalPlanForm() {
             onBlur={() => handleBlur('description')}
             placeholder="Brief plan overview (optional, max 2000 chars)"
             error={formErrors.description}
+          />
+
+          {/* Optional Sumago plan-code override. When set, this plan's
+              students will appear in Sumago with THIS plan string instead
+              of the org-wide SUMAGO_PLAN_CODE env default. Leave blank to
+              keep using the env default. */}
+          <Input
+            label="Sumago Plan Code (override)"
+            value={form.sumagoPlanCode}
+            onChange={(e) => setField('sumagoPlanCode', e.target.value)}
+            placeholder="e.g. NOVA2025_GOLD — leave blank to use env default"
+            hint="Optional. Must match a plan code registered on Sumago. Blank = use SUMAGO_PLAN_CODE env."
           />
         </div>
       </Card>

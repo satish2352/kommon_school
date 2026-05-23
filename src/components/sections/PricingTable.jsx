@@ -104,6 +104,18 @@ function PlanCard({ plan, pricing, onGetStarted }) {
   const cfg = TIER_CONFIG[plan.tier] ?? TIER_CONFIG.SILVER
   const features = Array.isArray(plan.features) ? plan.features : []
 
+  // Inline "Show all features" toggle. Collapsed state shows the first 4
+  // bullets + a "+N more" button; expanded shows the full list + a
+  // "Show less" button. Local to each card so toggling Gold doesn't
+  // affect Silver / Platinum.
+  //
+  // Resets to collapsed automatically on duration-tab change because
+  // the parent grid uses `key={duration}` and remounts every card.
+  const [showAll, setShowAll] = useState(false)
+  const COLLAPSED_LIMIT = 4
+  const visibleFeatures = showAll ? features : features.slice(0, COLLAPSED_LIMIT)
+  const hiddenCount = Math.max(0, features.length - COLLAPSED_LIMIT)
+
   // Pricing may be null when this plan has no active pricing at the
   // currently-selected duration (admin hasn't published it). We render
   // the card greyed-out rather than hiding it so the UI doesn't reflow
@@ -162,8 +174,8 @@ function PlanCard({ plan, pricing, onGetStarted }) {
         </div>
       )}
 
-      <ul className="flex-1 space-y-2 mb-6">
-        {features.slice(0, 4).map((f, i) => (
+      <ul className="flex-1 space-y-2 mb-3">
+        {visibleFeatures.map((f, i) => (
           <li key={i} className="flex items-start gap-2 text-xs text-slate-600">
             <svg className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -171,10 +183,39 @@ function PlanCard({ plan, pricing, onGetStarted }) {
             <span className="leading-relaxed">{f}</span>
           </li>
         ))}
-        {features.length > 4 && (
-          <li className="text-xs text-slate-400 pl-6">+{features.length - 4} more</li>
-        )}
       </ul>
+
+      {/* Inline expand/collapse toggle.
+          Shown only when there are hidden features. Button — not a
+          plain <span> — so it gets focus/keyboard support out of the
+          box. aria-expanded + a chevron icon make the state obvious. */}
+      {hiddenCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          aria-expanded={showAll}
+          className="self-start inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors pl-6"
+        >
+          <span>
+            {showAll ? 'Show less' : `+${hiddenCount} more ${hiddenCount === 1 ? 'feature' : 'features'}`}
+          </span>
+          <svg
+            className={`w-3.5 h-3.5 transition-transform duration-200 ${showAll ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+      )}
+
+      {/* Always-present flex-1 spacer pins the "Get started" CTA to the
+          bottom of the card so all three cards in the row line their
+          buttons up regardless of how many features each one shows or
+          whether the user has expanded one of them. */}
+      <div className="flex-1 mt-3" />
 
       <button
         type="button"

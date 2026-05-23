@@ -226,36 +226,79 @@ function SectionLabel({ n, title, hint, status }) {
   );
 }
 
-/* ─── Course chip ──────────────────────────────────────────────────────── */
-function CourseChip({ course, selected, onClick }) {
+/* ─── Duration ordering helper ─────────────────────────────────────────── */
+// Parses duration labels like "30 Days", "3 Months", "1 Year" to a comparable
+// day count so sibling variants render shortest → longest regardless of how
+// the backend ordered them.
+function durationToDays(label) {
+  if (!label) return Number.MAX_SAFE_INTEGER;
+  const m = String(label).match(/(\d+)\s*(day|days|week|weeks|month|months|year|years)/i);
+  if (!m) return Number.MAX_SAFE_INTEGER;
+  const n = Number(m[1]);
+  const unit = m[2].toLowerCase();
+  if (unit.startsWith('day'))   return n;
+  if (unit.startsWith('week'))  return n * 7;
+  if (unit.startsWith('month')) return n * 30;
+  if (unit.startsWith('year'))  return n * 365;
+  return Number.MAX_SAFE_INTEGER;
+}
+
+/* ─── Course group card ────────────────────────────────────────────────── */
+// Groups every duration variant of a single course under one header so admins
+// scan by course name once, then pick a duration. Replaces the old flat chip
+// list where the same course name was repeated up to ~6 times.
+function CourseGroupCard({ courseName, variants, selectedCourseId, onSelect }) {
+  const hasSelection = variants.some((v) => String(v.id) === String(selectedCourseId));
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-150 ${
-        selected
-          ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-          : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50'
+    <div
+      className={`rounded-xl border-2 p-4 transition-all duration-150 ${
+        hasSelection
+          ? 'border-emerald-500 bg-emerald-50/40 shadow-sm'
+          : 'border-slate-200 bg-white hover:border-emerald-300 hover:shadow-sm'
       }`}
     >
-      <svg
-        className={`w-4 h-4 ${selected ? 'text-white' : 'text-slate-400'}`}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        viewBox="0 0 24 24"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-      </svg>
-      <span>
-        {course.nameOfCourseAsGroup}
-        {course.duration?.label && (
-          <span className={`ml-1.5 text-xs ${selected ? 'text-white/80' : 'text-slate-400'}`}>
-            · {course.duration.label}
-          </span>
-        )}
-      </span>
-    </button>
+      <div className="flex items-center gap-2.5 mb-3">
+        <div
+          className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+            hasSelection ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600'
+          }`}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+        </div>
+        <h4 className={`flex-1 text-sm font-semibold leading-tight ${hasSelection ? 'text-emerald-800' : 'text-slate-800'}`}>
+          {courseName}
+        </h4>
+        <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold shrink-0">
+          {variants.length} {variants.length === 1 ? 'option' : 'options'}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {variants.map((c) => {
+          const selected = String(c.id) === String(selectedCourseId);
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onSelect(c.id)}
+              className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 ${
+                selected
+                  ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
+                  : 'bg-white border-slate-200 text-slate-600 hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700'
+              }`}
+            >
+              {selected && (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+              {c.duration?.label ?? 'No duration'}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -409,6 +452,7 @@ export default function AdminEnrollmentForm() {
   /* ── Plan state ── */
   const [courseList, setCourseList]               = useState([]);
   const [coursesLoading, setCoursesLoading]       = useState(true);
+  const [courseSearch, setCourseSearch]           = useState('');
   const [selectedCourseId, setSelectedCourseId]   = useState('');
   const [plansForCourse, setPlansForCourse]       = useState([]);
   const [plansLoading, setPlansLoading]           = useState(false);
@@ -454,6 +498,28 @@ export default function AdminEnrollmentForm() {
   );
   const coursePrice       = selectedCourse?.courseFee != null ? Number(selectedCourse.courseFee) : null;
   const availableCoupons  = (selectedPlan?.coupons ?? []).filter((c) => c.status === 'ACTIVE');
+
+  /* ── Group courses by name and filter by search ── */
+  // Backend returns one row per course×duration pair, so the same name shows
+  // up several times. Group them so admins see each course once with its
+  // duration variants nested underneath. Search filters by course name only —
+  // duration text isn't searched (admins know course names, not durations).
+  const groupedCourses = useMemo(() => {
+    const q = courseSearch.trim().toLowerCase();
+    const groups = new Map();
+    for (const c of courseList) {
+      const name = c.nameOfCourseAsGroup ?? 'Untitled course';
+      if (q && !name.toLowerCase().includes(q)) continue;
+      if (!groups.has(name)) groups.set(name, []);
+      groups.get(name).push(c);
+    }
+    // Sort variants inside each group by duration length (shortest → longest)
+    // for predictable reading order regardless of backend ordering.
+    for (const variants of groups.values()) {
+      variants.sort((a, b) => durationToDays(a.duration?.label) - durationToDays(b.duration?.label));
+    }
+    return Array.from(groups.entries()).map(([name, variants]) => ({ name, variants }));
+  }, [courseList, courseSearch]);
 
   /* ── Recalculate fees when plan/coupon/course price changes ── */
   useEffect(() => {
@@ -842,19 +908,60 @@ export default function AdminEnrollmentForm() {
                 ) : courseList.length === 0 ? (
                   <div className="py-6 text-center text-xs text-slate-400">No active courses found. Create one in Courses Master first.</div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {courseList.map((c) => (
-                      <CourseChip
-                        key={c.id}
-                        course={c}
-                        selected={String(c.id) === String(selectedCourseId)}
-                        onClick={() => {
-                          setSelectedCourseId(String(c.id));
-                          setErrors((prev) => ({ ...prev, _course: '' }));
-                        }}
+                  <>
+                    {/* Search input — filters grouped cards by course name. */}
+                    <div className="relative">
+                      <svg
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      <input
+                        type="text"
+                        value={courseSearch}
+                        onChange={(e) => setCourseSearch(e.target.value)}
+                        placeholder="Search course by name..."
+                        className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-slate-200 bg-white text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 transition-colors"
                       />
-                    ))}
-                  </div>
+                      {courseSearch && (
+                        <button
+                          type="button"
+                          onClick={() => setCourseSearch('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                          aria-label="Clear search"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+
+                    {groupedCourses.length === 0 ? (
+                      <div className="py-8 text-center text-xs text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
+                        No courses match "{courseSearch}". Try a different name.
+                      </div>
+                    ) : (
+                      <div className="grid sm:grid-cols-2 gap-3">
+                        {groupedCourses.map(({ name, variants }) => (
+                          <CourseGroupCard
+                            key={name}
+                            courseName={name}
+                            variants={variants}
+                            selectedCourseId={selectedCourseId}
+                            onSelect={(id) => {
+                              setSelectedCourseId(String(id));
+                              setErrors((prev) => ({ ...prev, _course: '' }));
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
                 {errors._course && <p className="text-red-500 text-xs">{errors._course}</p>}
               </div>

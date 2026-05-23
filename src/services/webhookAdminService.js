@@ -97,9 +97,41 @@ export const webhookAdminService = {
   getSumagoConfig: () => api.get('/webhooks/sumago/config'),
 
   /**
-   * Proxy fetch users from the Sumago "Retrieve User Data & Status" endpoint.
-   * The Bearer token lives only on the backend.
-   * Returns: { status, organizationCode, totalUsers, users: [...] }.
+   * Paginated read of the local sumago_users mirror, with optional
+   * server-side sync from Sumago on page 1 / refresh.
+   *
+   * The backend sync envelope is preserved on `data.sync`; pagination
+   * lives in the top-level `meta` block (same shape as listDeliveries).
+   *
+   * @param {{
+   *   page?: number,
+   *   limit?: number,
+   *   search?: string,
+   *   onboardingStatus?: string,
+   *   candidateType?: 'INTERNAL'|'EXTERNAL'|'UNKNOWN',
+   *   sortBy?: 'last_synced_at'|'first_seen_at'|'email'|'id',
+   *   sortOrder?: 'asc'|'desc',
+   *   forceSync?: boolean,
+   * }} params
+   * @returns {Promise<{ data: object, meta: { page, limit, total, totalPages } }>}
    */
-  fetchSumagoUsers: () => api.get('/webhooks/sumago/users'),
+  fetchSumagoUsers: async (params = {}) => {
+    const q = new URLSearchParams();
+    if (params.page)             q.set('page',  String(params.page));
+    if (params.limit)            q.set('limit', String(params.limit));
+    if (params.search && params.search.trim())
+                                 q.set('search', params.search.trim());
+    if (params.onboardingStatus) q.set('onboardingStatus', params.onboardingStatus);
+    if (params.candidateType)    q.set('candidateType', params.candidateType);
+    if (params.sortBy)           q.set('sortBy',    params.sortBy);
+    if (params.sortOrder)        q.set('sortOrder', params.sortOrder);
+    if (params.forceSync)        q.set('sync', 'force');
+
+    const qs = q.toString();
+    const payload = await getRawPayload(`/webhooks/sumago/users${qs ? '?' + qs : ''}`);
+    return {
+      data: payload?.data ?? { status: 'success', users: [], totalUsers: 0 },
+      meta: payload?.meta ?? { page: 1, limit: 25, total: 0, totalPages: 0 },
+    };
+  },
 };

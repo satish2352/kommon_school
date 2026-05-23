@@ -42,6 +42,83 @@ const TIER_STYLES = {
 const inr = (amount) =>
   `₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
+/**
+ * PlanFeatures
+ * ------------
+ * Renders the features bullet list inside a plan card with an inline
+ * "+N more" expand/collapse toggle.
+ *
+ * Why this isn't a regular <button>:
+ *   The parent plan card is itself a <button> (clicking the card selects
+ *   the plan), and HTML5 forbids nesting interactive elements. Using a
+ *   real <button> here would (a) emit invalid markup, (b) double-trigger
+ *   the plan-select on click via event bubbling. Instead we use a
+ *   <span role="button" tabIndex={0}> with explicit stopPropagation on
+ *   both click and keyboard activation, so the toggle stays keyboard-
+ *   reachable but doesn't ripple into the parent's onClick.
+ *
+ * State is local — each card manages its own showAll independently.
+ */
+function PlanFeatures({ features }) {
+  const [showAll, setShowAll] = useState(false);
+  const list      = Array.isArray(features) ? features : [];
+  const LIMIT     = 4;
+  const visible   = showAll ? list : list.slice(0, LIMIT);
+  const hidden    = Math.max(0, list.length - LIMIT);
+
+  const toggle = (e) => {
+    // Prevent the parent <button> (the card) from receiving this click
+    // and selecting the plan as a side effect of expanding features.
+    e.stopPropagation();
+    setShowAll((v) => !v);
+  };
+  const onKey = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      setShowAll((v) => !v);
+    }
+  };
+
+  return (
+    <ul className="mt-3 space-y-1.5">
+      {visible.map((f, i) => (
+        <li key={i} className="flex items-start gap-1.5 text-xs text-slate-600">
+          <svg className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          {f}
+        </li>
+      ))}
+      {hidden > 0 && (
+        <li>
+          <span
+            role="button"
+            tabIndex={0}
+            aria-expanded={showAll}
+            onClick={toggle}
+            onKeyDown={onKey}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 cursor-pointer transition-colors select-none"
+          >
+            <span>
+              {showAll ? 'Show less' : `+${hidden} more`}
+            </span>
+            <svg
+              className={`w-3 h-3 transition-transform duration-200 ${showAll ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </span>
+        </li>
+      )}
+    </ul>
+  );
+}
+
 // Default to the 1-month plan so new users see the entry-level price first.
 // Mirrors the Pricing Page default so the two surfaces feel consistent.
 // Callers may still override via the `defaultDuration` prop (e.g. when a
@@ -161,22 +238,10 @@ export default function PlanSelector({ plans = [], value, onChange, defaultDurat
                 <div className="mt-3 text-xs text-slate-400">Not available</div>
               )}
 
-              {/* Features */}
-              <ul className="mt-3 space-y-1.5">
-                {(Array.isArray(plan.features) ? plan.features : []).slice(0, 4).map((f, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-xs text-slate-600">
-                    <svg className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                    {f}
-                  </li>
-                ))}
-                {(Array.isArray(plan.features) ? plan.features : []).length > 4 && (
-                  <li className="text-xs text-slate-400">
-                    +{plan.features.length - 4} more
-                  </li>
-                )}
-              </ul>
+              {/* Features — collapsible "+N more" toggle handled by the
+                  PlanFeatures sub-component so each card has its own
+                  showAll state. */}
+              <PlanFeatures features={plan.features} />
 
               {/* Selected indicator */}
               {isSelected && (

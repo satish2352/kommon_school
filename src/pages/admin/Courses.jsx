@@ -39,6 +39,13 @@ const EMPTY_FORM = {
   durationId: '',
   description: '',
   status: 'ACTIVE',
+  // Optional Sumago taxonomy overrides — each blank means "use the
+  // SUMAGO_* env-var default at provision-user time". Must match strings
+  // Sumago has registered for the organization (admin's responsibility).
+  sumagoGroup:   '',
+  sumagoUnit:    '',
+  sumagoPhase:   '',
+  sumagoSegment: '',
 };
 
 function validateForm(f) {
@@ -191,6 +198,13 @@ export default function Courses() {
       durationId:    course.duration?.id != null ? String(course.duration.id) : '',
       description:   course.description ?? '',
       status:        course.status ?? 'ACTIVE',
+      // Hydrate the Sumago overrides from the loaded row so the inputs
+      // round-trip on edit. Empty string when null so the controlled
+      // inputs don't switch between uncontrolled/controlled.
+      sumagoGroup:   course.sumagoGroup   ?? '',
+      sumagoUnit:    course.sumagoUnit    ?? '',
+      sumagoPhase:   course.sumagoPhase   ?? '',
+      sumagoSegment: course.sumagoSegment ?? '',
     });
     setFormErrors({});
     setModalOpen(true);
@@ -223,6 +237,12 @@ export default function Courses() {
         status:      form.status,
         educationId: 1, // dummy: Education column removed from UI; backend/webhook still expect a value
         durationId:  form.durationId ? Number(form.durationId) : null,
+        // Sumago overrides — send null when blank so the backend clears
+        // any previously-saved value instead of keeping it.
+        sumagoGroup:   form.sumagoGroup.trim()   || null,
+        sumagoUnit:    form.sumagoUnit.trim()    || null,
+        sumagoPhase:   form.sumagoPhase.trim()   || null,
+        sumagoSegment: form.sumagoSegment.trim() || null,
       };
       if (editCourse) {
         await courseService.update(editCourse.id, payload);
@@ -519,6 +539,49 @@ export default function Courses() {
             placeholder="Brief course overview (optional)"
             error={formErrors.description}
           />
+
+          {/* ── Sumago taxonomy overrides ─────────────────────────────────
+              Optional. When set, students enrolled into THIS course will
+              appear in Sumago with these group / unit / phase / segment
+              strings instead of the org-wide SUMAGO_* env-var defaults.
+              Each field must match a value Sumago has registered for the
+              organization. Blank = use env default. */}
+          <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                Sumago Taxonomy Overrides
+              </p>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Optional — leave blank to use the org-wide SUMAGO_GROUP / SUMAGO_UNIT / SUMAGO_PHASE / SUMAGO_SEGMENT env defaults. Each value must match what Sumago expects.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Input
+                label="Group"
+                value={form.sumagoGroup}
+                onChange={(e) => setField('sumagoGroup', e.target.value)}
+                placeholder="e.g. Engineering - UG"
+              />
+              <Input
+                label="Unit"
+                value={form.sumagoUnit}
+                onChange={(e) => setField('sumagoUnit', e.target.value)}
+                placeholder="e.g. B.Tech CSE"
+              />
+              <Input
+                label="Phase"
+                value={form.sumagoPhase}
+                onChange={(e) => setField('sumagoPhase', e.target.value)}
+                placeholder="e.g. Semester 1"
+              />
+              <Input
+                label="Segment"
+                value={form.sumagoSegment}
+                onChange={(e) => setField('sumagoSegment', e.target.value)}
+                placeholder="e.g. A"
+              />
+            </div>
+          </div>
         </div>
       </Modal>
 

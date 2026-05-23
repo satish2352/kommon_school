@@ -16,6 +16,13 @@ export const adminService = {
    * financial snapshot fields.
    */
   getEnrollmentById: (id) => api.get(`/admin/enrollments/${encodeURIComponent(id)}`),
+  /**
+   * Re-queue the external-API sync for an enrollment whose
+   * external_sync_status is FAILED or DEAD_LETTER. Returns
+   * { enrollmentId, externalSyncStatus, jobId }.
+   */
+  retrySyncEnrollment: (id) =>
+    api.post(`/admin/enrollments/${encodeURIComponent(id)}/retry-sync`),
   listPayments: (filters) => api.get(`/admin/payments${qs(filters)}`),
   listFailedPayments: (filters) => api.get(`/admin/payments/failed${qs(filters)}`),
   listExternalApiLogs: (filters) => api.get(`/admin/external-api-logs${qs(filters)}`),

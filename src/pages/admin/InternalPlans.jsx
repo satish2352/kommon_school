@@ -19,7 +19,6 @@ import {
   Pagination,
   Skeleton,
   EmptyState,
-  Badge,
 } from '../../components/admin';
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -236,7 +235,7 @@ export default function InternalPlans() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Plan Name', 'Ref ID', 'Course', 'Price', 'Coupons', 'Status', 'Actions'].map((h) => (
+              {['Plan Name', 'Ref ID', 'Course', 'Price', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
@@ -262,7 +261,6 @@ export default function InternalPlans() {
               const courseName = linkedCourse
                 ? `${linkedCourse.nameOfCourseAsGroup}${linkedCourse.duration?.label ? ` · ${linkedCourse.duration.label}` : ''}`
                 : `Course #${p.courseId}`;
-              const activeCoupons = (p.coupons ?? []).filter((c) => c.status === 'ACTIVE').length;
               return (
                 <Tr key={p.id} striped={idx % 2 === 1}>
                   <Td className="text-slate-900 font-medium max-w-xs truncate">
@@ -281,13 +279,6 @@ export default function InternalPlans() {
                   </Td>
                   <Td className="text-slate-900 font-semibold">
                     {formatFee(linkedCourse?.courseFee)}
-                  </Td>
-                  <Td className="text-slate-600 text-sm">
-                    {activeCoupons > 0 ? (
-                      <Badge variant="success">{activeCoupons} active</Badge>
-                    ) : (
-                      <span className="text-slate-300">—</span>
-                    )}
                   </Td>
                   <Td>
                     <StatusToggle

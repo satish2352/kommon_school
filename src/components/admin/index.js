@@ -6,6 +6,7 @@ export { IconButton } from './IconButton';
 export { Input } from './Input';
 export { Textarea } from './Textarea';
 export { Select } from './Select';
+export { SearchableSelect } from './SearchableSelect';
 export { Modal } from './Modal';
 export { Badge } from './Badge';
 export { StatusToggle } from './StatusToggle';

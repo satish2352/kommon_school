@@ -10,20 +10,10 @@ import {
   Input,
   Textarea,
   Select,
-  Badge,
+  SearchableSelect,
 } from '../../components/admin';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
-
-const EMPTY_COUPON = {
-  code:          '',
-  discountType:  'PERCENT',
-  discountValue: '',
-  expiryDate:    '',
-  usageLimit:    '',
-  usedCount:     0,
-  status:        'ACTIVE',
-};
 
 // The plan's contract `duration` enum (1_MONTH / 3_MONTHS / 6_MONTHS / 12_MONTHS)
 // is still required by the Prisma schema, but no longer shown in the form.
@@ -36,11 +26,16 @@ const EMPTY_FORM = {
   description: '',
   courseId:    '',
   status:      'ACTIVE',
-  coupons:     [],
   // Optional override for the `plan` field sent in the Sumago provision-
   // user webhook. Blank → backend falls back to SUMAGO_PLAN_CODE env var.
   sumagoPlanCode: '',
+  // Required: external integration Plan ID. Sent as `planId` in the Sumago
+  // provision-user webhook. Globally unique across internal plans.
+  externalPlanId: '',
 };
+
+// Mirrors backend Joi pattern: letters, digits, underscores, hyphens.
+const EXTERNAL_PLAN_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 /* ─── Validation ─────────────────────────────────────────────────────────── */
 
@@ -63,147 +58,16 @@ function validateForm(form) {
     e.description = 'Description must be at most 2000 characters';
   }
 
-  return e;
-}
-
-function validateCoupon(coupon) {
-  const e = {};
-  const code = coupon.code.trim();
-  if (!code) {
-    e.code = 'Coupon code is required';
-  } else if (code.length > 50) {
-    e.code = 'Code must be at most 50 characters';
-  }
-
-  const val = Number(coupon.discountValue);
-  if (coupon.discountValue === '' || isNaN(val) || val <= 0) {
-    e.discountValue = 'Discount value must be a positive number';
-  } else if (coupon.discountType === 'PERCENT' && val > 100) {
-    e.discountValue = 'Percent discount cannot exceed 100';
-  }
-
-  if (coupon.usageLimit !== '' && coupon.usageLimit !== null) {
-    const lim = Number(coupon.usageLimit);
-    if (isNaN(lim) || lim < 1) {
-      e.usageLimit = 'Usage limit must be a positive integer';
-    }
+  const externalPlanId = (form.externalPlanId || '').trim();
+  if (!externalPlanId) {
+    e.externalPlanId = 'Plan ID is required';
+  } else if (externalPlanId.length > 100) {
+    e.externalPlanId = 'Plan ID must be at most 100 characters';
+  } else if (!EXTERNAL_PLAN_ID_PATTERN.test(externalPlanId)) {
+    e.externalPlanId = 'Letters, digits, underscores, hyphens only';
   }
 
   return e;
-}
-
-/* ─── Coupon form row ────────────────────────────────────────────────────── */
-function CouponRow({ coupon, idx, onChange, onRemove, errors }) {
-  const err = errors ?? {};
-
-  return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-slate-600">Coupon {idx + 1}</span>
-        <button
-          type="button"
-          onClick={onRemove}
-          className="text-red-400 hover:text-red-600 transition-colors"
-          aria-label="Remove coupon"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Code <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={coupon.code}
-            onChange={(e) => onChange('code', e.target.value.toUpperCase().slice(0, 50))}
-            placeholder="e.g. WELCOME10"
-            maxLength={50}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
-          />
-          {err.code && <p className="text-red-500 text-xs mt-1">{err.code}</p>}
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
-          <select
-            value={coupon.status}
-            onChange={(e) => onChange('status', e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
-          >
-            <option value="ACTIVE">Active</option>
-            <option value="INACTIVE">Inactive</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="grid sm:grid-cols-3 gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Discount Type</label>
-          <select
-            value={coupon.discountType}
-            onChange={(e) => onChange('discountType', e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
-          >
-            <option value="PERCENT">Percent (%)</option>
-            <option value="FLAT">Flat (₹)</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">
-            Discount Value <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="number"
-            min="0"
-            step={coupon.discountType === 'PERCENT' ? '0.1' : '1'}
-            max={coupon.discountType === 'PERCENT' ? '100' : undefined}
-            value={coupon.discountValue}
-            onChange={(e) => onChange('discountValue', e.target.value)}
-            placeholder={coupon.discountType === 'PERCENT' ? 'e.g. 10' : 'e.g. 500'}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
-          />
-          {err.discountValue && <p className="text-red-500 text-xs mt-1">{err.discountValue}</p>}
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Usage Limit</label>
-          <input
-            type="number"
-            min="1"
-            step="1"
-            value={coupon.usageLimit}
-            onChange={(e) => onChange('usageLimit', e.target.value)}
-            placeholder="e.g. 100 (leave blank = unlimited)"
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
-          />
-          {err.usageLimit && <p className="text-red-500 text-xs mt-1">{err.usageLimit}</p>}
-        </div>
-      </div>
-
-      <div className="grid sm:grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1">Expiry Date</label>
-          <input
-            type="date"
-            value={coupon.expiryDate}
-            onChange={(e) => onChange('expiryDate', e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
-          />
-        </div>
-        {coupon.usedCount > 0 && (
-          <div className="flex items-end">
-            <Badge variant="neutral">{coupon.usedCount} uses</Badge>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 }
 
 /* ─── Main component ─────────────────────────────────────────────────────── */
@@ -214,7 +78,6 @@ export default function InternalPlanForm() {
 
   const [form, setForm]             = useState(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState({});
-  const [couponErrors, setCouponErrors] = useState([]);
   const [saving, setSaving]         = useState(false);
   const [loading, setLoading]       = useState(isEdit);
   const [planName, setPlanName]     = useState('');
@@ -245,14 +108,8 @@ export default function InternalPlanForm() {
           courseId:    plan.courseId != null ? String(plan.courseId) : '',
           status:      plan.status ?? 'ACTIVE',
           sumagoPlanCode: plan.sumagoPlanCode ?? '',
-          coupons:     (plan.coupons ?? []).map((c) => ({
-            ...c,
-            discountValue: String(c.discountValue ?? ''),
-            usageLimit:    c.usageLimit != null ? String(c.usageLimit) : '',
-            expiryDate:    c.expiryDate ? c.expiryDate.slice(0, 10) : '',
-          })),
+          externalPlanId: plan.externalPlanId ?? '',
         });
-        setCouponErrors(Array(plan.coupons?.length ?? 0).fill({}));
       })
       .catch((err) => toast.error(err.message ?? 'Failed to load plan'))
       .finally(() => setLoading(false));
@@ -270,44 +127,23 @@ export default function InternalPlanForm() {
     }
   };
 
-  /* ── Coupon helpers ── */
-  const addCoupon = () => {
-    setForm((prev) => ({ ...prev, coupons: [...prev.coupons, { ...EMPTY_COUPON }] }));
-    setCouponErrors((prev) => [...prev, {}]);
-  };
-
-  const removeCoupon = (idx) => {
-    setForm((prev) => ({ ...prev, coupons: prev.coupons.filter((_, i) => i !== idx) }));
-    setCouponErrors((prev) => prev.filter((_, i) => i !== idx));
-  };
-
-  const updateCoupon = (idx, key, val) => {
-    setForm((prev) => {
-      const coupons = [...prev.coupons];
-      coupons[idx] = { ...coupons[idx], [key]: val };
-      return { ...prev, coupons };
-    });
-  };
-
   /* ── Save handler ── */
   const handleSave = async () => {
     const e = validateForm(form);
 
-    // Validate each coupon
-    const cErrs = form.coupons.map((c) => validateCoupon(c));
-    const hasCouponErrs = cErrs.some((ce) => Object.keys(ce).length > 0);
-
-    if (Object.keys(e).length || hasCouponErrs) {
+    if (Object.keys(e).length) {
       setFormErrors(e);
-      setCouponErrors(cErrs);
       return;
     }
 
     setFormErrors({});
-    setCouponErrors(Array(form.coupons.length).fill({}));
     setSaving(true);
 
     try {
+      // `coupons` is intentionally omitted from the payload.
+      // - On create: backend defaults it to [].
+      // - On update: backend only touches coupons when the field is sent,
+      //   so existing data on the row is preserved untouched.
       const payload = {
         name:        form.name.trim(),
         duration:    form.duration,
@@ -315,14 +151,7 @@ export default function InternalPlanForm() {
         courseId:    Number(form.courseId),
         status:      form.status,
         sumagoPlanCode: form.sumagoPlanCode?.trim() || null,
-        coupons:     form.coupons.map((c) => ({
-          ...c,
-          code:          c.code.trim().toUpperCase(),
-          discountValue: Number(c.discountValue),
-          usageLimit:    c.usageLimit !== '' && c.usageLimit !== null ? Number(c.usageLimit) : null,
-          expiryDate:    c.expiryDate || null,
-          usedCount:     Number(c.usedCount ?? 0),
-        })),
+        externalPlanId: form.externalPlanId.trim(),
       };
 
       if (isEdit) {
@@ -357,7 +186,7 @@ export default function InternalPlanForm() {
     <div className="space-y-6">
       <PageHeader
         title={isEdit ? `Edit: ${planName || form.name || 'Internal Plan'}` : 'Add Internal Plan'}
-        subtitle={isEdit ? 'Update plan details and coupons' : 'Create a new course-specific internal plan'}
+        subtitle={isEdit ? 'Update plan details' : 'Create a new course-specific internal plan'}
         action={
           <Button variant="secondary" onClick={() => navigate('/admin/internal-plans')}>
             Cancel
@@ -394,44 +223,64 @@ export default function InternalPlanForm() {
             </div>
           )}
 
-          <Input
-            label="Plan Name"
-            required
-            type="text"
-            value={form.name}
-            onChange={(e) => setField('name', e.target.value)}
-            onBlur={() => handleBlur('name')}
-            placeholder="e.g. Data Science — 6 Month Intensive"
-            error={formErrors.name}
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input
+              label="Plan Name"
+              required
+              type="text"
+              value={form.name}
+              onChange={(e) => setField('name', e.target.value)}
+              onBlur={() => handleBlur('name')}
+              placeholder="e.g. Data Science — 6 Month Intensive"
+              error={formErrors.name}
+            />
 
-          <Select
+            <Input
+              label="Plan ID"
+              required
+              value={form.externalPlanId}
+              onChange={(e) => setField('externalPlanId', e.target.value)}
+              onBlur={() => handleBlur('externalPlanId')}
+              placeholder="e.g. SUMAGOTEST_SCOPE_30DAYS"
+              maxLength={100}
+              autoComplete="off"
+              spellCheck={false}
+              hint="Sent as planId in Sumago webhook. Must be unique."
+              error={formErrors.externalPlanId}
+            />
+          </div>
+
+          <SearchableSelect
             label="Course"
             required
             value={form.courseId}
-            onChange={(e) => { setField('courseId', e.target.value); }}
+            onChange={(val) => setField('courseId', val)}
             error={formErrors.courseId}
-          >
-            <option value="">Select a course...</option>
-            {/* Each course offering is a unique (Course Name × Duration) row,
-                so the label includes both — otherwise the same name appears
-                N times (once per duration variant) and looks like duplicates. */}
-            {[...courseOptions]
+            placeholder="Search a course…"
+            noResultsText="No courses match"
+            options={[...courseOptions]
               .sort((a, b) => {
                 const n = (a.nameOfCourseAsGroup ?? '').localeCompare(b.nameOfCourseAsGroup ?? '');
                 if (n !== 0) return n;
                 return (a.duration?.sortOrder ?? 0) - (b.duration?.sortOrder ?? 0);
               })
               .map((c) => {
+                // Each course offering is a unique (Course Name × Duration)
+                // row, so the label includes both — otherwise the same name
+                // appears N times (once per duration variant) and looks like
+                // duplicates.
                 const durLabel = c.duration?.label ? ` — ${c.duration.label}` : '';
-                const feeLabel = c.courseFee != null ? ` · ₹${Number(c.courseFee).toLocaleString('en-IN')}` : '';
-                return (
-                  <option key={c.id} value={String(c.id)}>
-                    {c.nameOfCourseAsGroup}{durLabel}{feeLabel}
-                  </option>
-                );
-              })}
-          </Select>
+                const feeLabel = c.courseFee != null
+                  ? `₹${Number(c.courseFee).toLocaleString('en-IN')}`
+                  : null;
+                return {
+                  value: String(c.id),
+                  label: `${c.nameOfCourseAsGroup}${durLabel}`,
+                  hint:  feeLabel,
+                };
+              })
+            }
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -482,37 +331,6 @@ export default function InternalPlanForm() {
             placeholder="e.g. NOVA2025_GOLD — leave blank to use env default"
             hint="Optional. Must match a plan code registered on Sumago. Blank = use SUMAGO_PLAN_CODE env."
           />
-        </div>
-      </Card>
-
-      {/* ── Section 2: Coupons ── */}
-      <Card title="Coupons">
-        <div className="space-y-4">
-          {form.coupons.length === 0 && (
-            <p className="text-xs text-slate-400 italic">No coupons added yet.</p>
-          )}
-
-          {form.coupons.map((coupon, idx) => (
-            <CouponRow
-              key={idx}
-              coupon={coupon}
-              idx={idx}
-              onChange={(key, val) => updateCoupon(idx, key, val)}
-              onRemove={() => removeCoupon(idx)}
-              errors={couponErrors[idx]}
-            />
-          ))}
-
-          <Button
-            variant="secondary"
-            onClick={addCoupon}
-            disabled={form.coupons.length >= 10}
-          >
-            + Add Coupon
-          </Button>
-          <p className="text-xs text-slate-400">
-            {form.coupons.length}/10 coupons. Each coupon is specific to this plan.
-          </p>
         </div>
       </Card>
 

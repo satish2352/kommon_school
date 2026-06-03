@@ -2,15 +2,13 @@
  * EnrollmentDetailsDrawer
  * -----------------------
  * Right-side slide-out drawer that fetches a single enrollment via
- * GET /admin/enrollments/:id and renders four sections:
+ * GET /admin/enrollments/:id and renders three sections:
  *
  *   1. Plan Details        — course, plan, duration, original amount
- *   2. Coupon Details      — code, type, % / flat value, amount deducted
- *                            (or "—" when no coupon was applied)
- *   3. Financial Summary   — original − discount = final / paid / pending
+ *   2. Financial Summary   — original − discount = final / paid / pending
  *                            + payment status badge (PAID, PARTIAL,
  *                            PENDING, FULLY_DISCOUNTED) with colour
- *   4. Payment History     — every Payment row (date, mode, amount,
+ *   3. Payment History     — every Payment row (date, mode, amount,
  *                            transaction id, status, collected-by hint)
  *
  * All numbers come straight from the backend (paise → /100); the frontend
@@ -233,45 +231,14 @@ export default function EnrollmentDetailsDrawer({ enrollmentId, onClose }) {
                     />
                   </Section>
 
-                  {/* Section 2: Coupon */}
-                  <Section number="2" title="Coupon Details">
-                    {data.couponCode ? (
-                      <>
-                        <Row
-                          label="Code"
-                          value={<span className="font-mono">{data.couponCode}</span>}
-                          accent="text-emerald-700"
-                        />
-                        <Row
-                          label="Type"
-                          value={
-                            data.couponSnapshot?.discountType === 'PERCENT'
-                              ? `${Number(data.couponSnapshot.discountValue)}% off`
-                              : `Flat ${inr(data.couponSnapshot?.discountValue ?? 0)} off`
-                          }
-                        />
-                        {data.couponSnapshot?.discountType === 'PERCENT' && (
-                          <Row label="Discount %" value={`${Number(data.couponSnapshot.discountValue)}%`} />
-                        )}
-                        <Row
-                          label="Discount Amount"
-                          value={`− ${paiseToInr(data.discountAmountPaise)}`}
-                          accent="text-emerald-700 font-semibold"
-                        />
-                      </>
-                    ) : (
-                      <div className="text-sm text-slate-400 italic py-2">— No coupon applied</div>
-                    )}
-                  </Section>
-
-                  {/* Section 3: Financial Summary
+                  {/* Section 2: Financial Summary
                       Admin always collects full payment up-front, so we
                       only display the Original − Discount = Final formula
                       and the status pill (PAID or FULLY_DISCOUNTED). No
                       Paid / Pending rows — they would always equal Final
                       and 0 respectively, which is just visual noise. */}
                   <Section
-                    number="3"
+                    number="2"
                     title="Financial Summary"
                     accent={
                       data.internalPaymentStatus === 'FULLY_DISCOUNTED'
@@ -299,8 +266,8 @@ export default function EnrollmentDetailsDrawer({ enrollmentId, onClose }) {
                     </div>
                   </Section>
 
-                  {/* Section 4: Payment History */}
-                  <Section number="4" title="Payment Attempts / History">
+                  {/* Section 3: Payment History */}
+                  <Section number="3" title="Payment Attempts / History">
                     {isFullyDiscounted && (data.payments ?? []).length === 0 ? (
                       <div className="text-sm text-slate-500 italic py-2">
                         No payment records — this enrollment was fully discounted (₹0 due).

@@ -107,7 +107,7 @@ function OptionCard({ label, sub, selected, onClick }) {
 /* ─── Step definitions ───────────────────────────────────────────────────── */
 const STEPS = [
   { title: 'About Student',  subtitle: 'Enter the student details' },
-  { title: 'Choose Plan',    subtitle: 'Select course, internal plan, and coupon' },
+  { title: 'Choose Plan',    subtitle: 'Select course and internal plan' },
   { title: 'Review & Submit', subtitle: 'Confirm and create the enrollment' },
 ];
 
@@ -341,45 +341,12 @@ function PlanCard({ plan, coursePrice, selected, onSelect }) {
       {plan.description && (
         <p className="text-xs text-slate-500 mt-1 line-clamp-2">{plan.description}</p>
       )}
-      <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-500">
-        {(plan.coupons ?? []).filter((c) => c.status === 'ACTIVE').length > 0 && (
-          <span className="inline-flex items-center gap-1">
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-            </svg>
-            {(plan.coupons ?? []).filter((c) => c.status === 'ACTIVE').length} coupon{(plan.coupons ?? []).filter((c) => c.status === 'ACTIVE').length === 1 ? '' : 's'}
-          </span>
-        )}
-      </div>
-    </button>
-  );
-}
-
-/* ─── Coupon chip ──────────────────────────────────────────────────────── */
-function CouponChip({ coupon, selected, onClick, label, hint }) {
-  const isNone = coupon == null;
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-start gap-0.5 px-3 py-2 rounded-lg border text-left transition-all duration-150 min-w-[120px] ${
-        selected
-          ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
-          : 'bg-white border-slate-200 text-slate-700 hover:border-emerald-300 hover:bg-emerald-50'
-      } ${isNone ? 'border-dashed' : ''}`}
-    >
-      <span className="text-xs font-bold tracking-wide">
-        {label}
-      </span>
-      <span className={`text-[10px] ${selected ? 'text-emerald-100' : 'text-slate-400'}`}>
-        {hint}
-      </span>
     </button>
   );
 }
 
 /* ─── Sticky fee summary ───────────────────────────────────────────────── */
-function FeeSummaryCard({ feeBreakdown, loading, selectedPlan, coursePrice, selectedCouponCode }) {
+function FeeSummaryCard({ feeBreakdown, loading, selectedPlan, coursePrice }) {
   if (!selectedPlan) {
     return (
       <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/50 p-5 text-center">
@@ -389,10 +356,8 @@ function FeeSummaryCard({ feeBreakdown, loading, selectedPlan, coursePrice, sele
     );
   }
 
-  const base   = feeBreakdown?.basePrice   ?? coursePrice ?? 0;
-  const disc   = feeBreakdown?.discount    ?? 0;
-  const final  = feeBreakdown?.finalAmount ?? coursePrice ?? 0;
-  const savedPercent = base > 0 && disc > 0 ? Math.round((disc / base) * 100) : 0;
+  const base  = feeBreakdown?.basePrice   ?? coursePrice ?? 0;
+  const final = feeBreakdown?.finalAmount ?? coursePrice ?? 0;
 
   return (
     <div className="rounded-2xl border-2 border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-5 shadow-sm">
@@ -411,31 +376,12 @@ function FeeSummaryCard({ feeBreakdown, loading, selectedPlan, coursePrice, sele
           <dt className="text-slate-600">Base Price</dt>
           <dd className="font-medium text-slate-800">{inr(base)}</dd>
         </div>
-        <div className="flex justify-between">
-          <dt className="text-slate-600">
-            Discount {selectedCouponCode && <span className="text-[10px] text-emerald-600">({selectedCouponCode})</span>}
-          </dt>
-          <dd className={`font-medium ${disc > 0 ? 'text-emerald-700' : 'text-slate-400'}`}>
-            {disc > 0 ? `− ${inr(disc)}` : '—'}
-          </dd>
-        </div>
         <div className="border-t border-emerald-200 my-2" />
         <div className="flex justify-between items-baseline">
           <dt className="text-sm font-semibold text-slate-800">Final Payable</dt>
           <dd className="text-xl font-bold text-emerald-700">{inr(final)}</dd>
         </div>
-        {savedPercent > 0 && (
-          <div className="text-[11px] text-emerald-600 text-right">
-            You save {savedPercent}%
-          </div>
-        )}
       </dl>
-
-      {feeBreakdown?.couponValid === false && selectedCouponCode && (
-        <p className="mt-3 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
-          Coupon not applied: {feeBreakdown.couponReason}
-        </p>
-      )}
     </div>
   );
 }
@@ -457,7 +403,6 @@ export default function AdminEnrollmentForm() {
   const [plansForCourse, setPlansForCourse]       = useState([]);
   const [plansLoading, setPlansLoading]           = useState(false);
   const [selectedPlanId, setSelectedPlanId]       = useState('');
-  const [selectedCouponCode, setSelectedCouponCode] = useState('');
   const [feeBreakdown, setFeeBreakdown]           = useState(null);
   const [feeCalculating, setFeeCalculating]       = useState(false);
 
@@ -477,7 +422,6 @@ export default function AdminEnrollmentForm() {
     if (!selectedCourseId) {
       setPlansForCourse([]);
       setSelectedPlanId('');
-      setSelectedCouponCode('');
       setFeeBreakdown(null);
       return;
     }
@@ -497,7 +441,6 @@ export default function AdminEnrollmentForm() {
     [courseList, selectedCourseId],
   );
   const coursePrice       = selectedCourse?.courseFee != null ? Number(selectedCourse.courseFee) : null;
-  const availableCoupons  = (selectedPlan?.coupons ?? []).filter((c) => c.status === 'ACTIVE');
 
   /* ── Group courses by name and filter by search ── */
   // Backend returns one row per course×duration pair, so the same name shows
@@ -521,7 +464,7 @@ export default function AdminEnrollmentForm() {
     return Array.from(groups.entries()).map(([name, variants]) => ({ name, variants }));
   }, [courseList, courseSearch]);
 
-  /* ── Recalculate fees when plan/coupon/course price changes ── */
+  /* ── Recalculate fees when plan / course price changes ── */
   useEffect(() => {
     if (!selectedPlanId || coursePrice == null) {
       setFeeBreakdown(null);
@@ -532,13 +475,12 @@ export default function AdminEnrollmentForm() {
     calculateFee({
       internalPlanId: Number(selectedPlanId),
       basePrice:      coursePrice,
-      couponCode:     selectedCouponCode || undefined,
     })
       .then((res) => { if (!cancelled) setFeeBreakdown(res); })
       .catch(() => { if (!cancelled) setFeeBreakdown(null); })
       .finally(() => { if (!cancelled) setFeeCalculating(false); });
     return () => { cancelled = true; };
-  }, [selectedPlanId, selectedCouponCode, coursePrice]);
+  }, [selectedPlanId, coursePrice]);
 
   const set = (key, val) => setData((prev) => ({ ...prev, [key]: val }));
 
@@ -552,26 +494,6 @@ export default function AdminEnrollmentForm() {
     } else if (step === 1) {
       const e = validateStep1({ courseId: selectedCourseId, internalPlanId: selectedPlanId });
       if (Object.keys(e).length > 0) { setErrors(e); return; }
-
-      // Block the step transition when the user has picked a coupon that
-      // the server has flagged invalid (most commonly: usageLimit hit).
-      // calculateFee re-runs on every coupon/plan change, so the time-
-      // varying state (usedCount, expiry) is fresh when we check it here.
-      // The final submit also re-validates server-side, but failing fast
-      // at this step avoids the "go to Review, click Submit, get an
-      // error, come back" round-trip.
-      if (selectedCouponCode && feeBreakdown && feeBreakdown.couponValid === false) {
-        const reason = feeBreakdown.couponReason || 'Coupon is invalid';
-        const userMessage = reason === 'Coupon usage limit reached'
-          ? 'This coupon’s usage limit has been reached. Pick another coupon or continue without one.'
-          : `Coupon cannot be applied: ${reason}.`;
-        toast.error(userMessage);
-        // Surface as inline error too, so users who dismiss toasts still
-        // see why the navigation didn't advance.
-        setErrors({ _coupon: userMessage });
-        return;
-      }
-
       setErrors({});
       setStep(2);
     }
@@ -595,10 +517,10 @@ export default function AdminEnrollmentForm() {
     setSubmitting(true);
     try {
       // Server-authoritative payload. We deliberately do NOT send any
-      // pricing values — the backend re-resolves base / discount / final
-      // from internalPlanId + courseId + couponCode and persists the
-      // snapshot. Sending fee values would be misleading (validator
-      // drops them) and a tampering vector.
+      // pricing values — the backend re-resolves base / final from
+      // internalPlanId + courseId and persists the snapshot. Sending fee
+      // values would be misleading (validator drops them) and a tampering
+      // vector.
       const body = {
         name:           data.name.trim(),
         email:          data.email.trim(),
@@ -606,7 +528,6 @@ export default function AdminEnrollmentForm() {
         role:           ROLE_MAP[data.role],
         courseId:       Number(selectedCourseId),
         internalPlanId: Number(selectedPlanId),
-        ...(selectedCouponCode ? { internalCouponCode: selectedCouponCode } : {}),
         ...(data.education ? { education: EDUCATION_MAP[data.education] } : {}),
         ...(data.readiness ? { readiness: READINESS_MAP[data.readiness] } : {}),
         ...(data.source    ? { source: SOURCE_MAP[data.source] }          : {}),
@@ -617,28 +538,15 @@ export default function AdminEnrollmentForm() {
       setResult(resp);
     } catch (err) {
       if (err.details) console.error('[AdminEnrollmentForm] API validation details:', err.details);
-      // Distinct toast for coupon-usage-limit-reached so admins
-      // immediately understand why and can pick another coupon.
-      if (err.code === 'COUPON_USAGE_LIMIT_REACHED') {
-        toast.error(err.message || 'Coupon usage limit has been reached. Please choose another coupon or continue without one.');
-        // Pop them back to step 1 (plan/coupon picker) so they can
-        // either clear the coupon selection or pick a different one
-        // without losing their student details.
-        setStep(1);
-      } else if (err.code === 'COUPON_INVALID') {
-        toast.error(err.message || 'This coupon is not valid.');
-        setStep(1);
-      } else {
-        const detailMsg =
-          Array.isArray(err.details) && err.details.length > 0
-            ? err.details.map((d) => `${d.field ?? ''}: ${d.message ?? d}`).join('; ')
-            : null;
-        toast.error(
-          detailMsg
-            ? `Validation failed — ${detailMsg}`
-            : (err.message ?? 'Failed to create enrollment. Please try again.'),
-        );
-      }
+      const detailMsg =
+        Array.isArray(err.details) && err.details.length > 0
+          ? err.details.map((d) => `${d.field ?? ''}: ${d.message ?? d}`).join('; ')
+          : null;
+      toast.error(
+        detailMsg
+          ? `Validation failed — ${detailMsg}`
+          : (err.message ?? 'Failed to create enrollment. Please try again.'),
+      );
     } finally {
       setSubmitting(false);
     }
@@ -650,7 +558,6 @@ export default function AdminEnrollmentForm() {
     setErrors({});
     setSelectedCourseId('');
     setSelectedPlanId('');
-    setSelectedCouponCode('');
     setFeeBreakdown(null);
     setResult(null);
   };
@@ -726,7 +633,6 @@ export default function AdminEnrollmentForm() {
   /* ── Section status helpers (progressive disclosure) ── */
   const courseStatus  = selectedCourseId ? 'done' : 'active';
   const planStatus    = !selectedCourseId ? 'pending' : selectedPlanId ? 'done' : 'active';
-  const couponStatus  = !selectedPlanId ? 'pending' : 'active';
 
   /* ── Form ──────────────────────────────────────────────────────────────── */
   return (
@@ -997,7 +903,6 @@ export default function AdminEnrollmentForm() {
                         selected={String(p.id) === String(selectedPlanId)}
                         onSelect={() => {
                           setSelectedPlanId(String(p.id));
-                          setSelectedCouponCode('');
                           setErrors((prev) => ({ ...prev, _plan: '' }));
                         }}
                       />
@@ -1008,94 +913,6 @@ export default function AdminEnrollmentForm() {
               </div>
             </Card>
 
-            {/* Section 3: Coupon */}
-            <Card>
-              <div className="space-y-3">
-                <SectionLabel
-                  n="3"
-                  title="Coupon"
-                  hint={!selectedPlanId ? 'Pick a plan first' : 'Optional'}
-                  status={couponStatus}
-                />
-                {!selectedPlanId ? (
-                  <div className="py-6 text-center text-xs text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-                    Pick a plan above to see eligible coupons.
-                  </div>
-                ) : availableCoupons.length === 0 ? (
-                  <p className="text-xs text-slate-400 italic">No coupons available for this plan.</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    <CouponChip
-                      coupon={null}
-                      label="No coupon"
-                      hint="Pay full price"
-                      selected={!selectedCouponCode}
-                      onClick={() => setSelectedCouponCode('')}
-                    />
-                    {availableCoupons.map((c) => (
-                      <CouponChip
-                        key={c.id}
-                        coupon={c}
-                        label={c.code}
-                        hint={
-                          c.discountType === 'PERCENT'
-                            ? `${c.discountValue}% off`
-                            : `${inr(c.discountValue)} off`
-                        }
-                        selected={selectedCouponCode === c.code}
-                        onClick={() => {
-                          // Selecting a new coupon clears the prior _coupon
-                          // error; calculateFee will re-evaluate this one
-                          // and the error returns only if the new pick is
-                          // also invalid.
-                          setSelectedCouponCode(c.code);
-                          setErrors((prev) => ({ ...prev, _coupon: '' }));
-                        }}
-                      />
-                    ))}
-                  </div>
-                )}
-
-                {/* Coupon validity banner — prominent inline error.
-                    Shown when calculateFee says the picked coupon is
-                    invalid for any reason. Limit-reached gets a friendlier
-                    rephrase + a clear next-action hint; other reasons
-                    surface the server's reason verbatim. */}
-                {selectedCouponCode && feeBreakdown?.couponValid === false && (
-                  <div className="mt-3 flex items-start gap-3 px-4 py-3 rounded-xl bg-rose-50 border border-rose-200">
-                    <svg className="w-5 h-5 text-rose-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-                    </svg>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-rose-800">
-                        {feeBreakdown.couponReason === 'Coupon usage limit reached'
-                          ? `Coupon ${selectedCouponCode} is no longer available`
-                          : `Coupon ${selectedCouponCode} cannot be applied`}
-                      </div>
-                      <p className="text-xs text-rose-700 mt-0.5 leading-relaxed">
-                        {feeBreakdown.couponReason === 'Coupon usage limit reached'
-                          ? 'This coupon’s usage limit has been reached. Pick another coupon below, or click "No coupon" to continue at the full price.'
-                          : (feeBreakdown.couponReason || 'This coupon cannot be applied to the selected plan.')}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSelectedCouponCode('');
-                          setErrors((prev) => ({ ...prev, _coupon: '' }));
-                        }}
-                        className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-rose-700 hover:text-rose-900 underline underline-offset-2"
-                      >
-                        Continue without coupon
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {errors._coupon && !(selectedCouponCode && feeBreakdown?.couponValid === false) && (
-                  <p className="text-rose-600 text-xs mt-1">{errors._coupon}</p>
-                )}
-              </div>
-            </Card>
           </div>
 
           {/* RIGHT: sticky fee summary */}
@@ -1106,7 +923,6 @@ export default function AdminEnrollmentForm() {
                 loading={feeCalculating}
                 selectedPlan={selectedPlan}
                 coursePrice={coursePrice}
-                selectedCouponCode={selectedCouponCode}
               />
 
               {selectedCourse && selectedPlan && (
@@ -1167,8 +983,6 @@ export default function AdminEnrollmentForm() {
                   ['Plan',          selectedPlan.name],
                   ['Duration',      DURATION_LABELS[selectedPlan.duration] ?? selectedPlan.duration],
                   ['Base Price',    inr(feeBreakdown.basePrice)],
-                  ['Coupon',        selectedCouponCode || '—'],
-                  ['Discount',      feeBreakdown.discount > 0 ? `− ${inr(feeBreakdown.discount)}` : '—'],
                   ['Final Payable', inr(feeBreakdown.finalAmount)],
                 ].map(([k, v]) => (
                   <div key={k}>

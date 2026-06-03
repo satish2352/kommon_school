@@ -7,7 +7,7 @@
  * (ENROLLMENT ID / NAME / EMAIL / PHONE / TYPE / PAYMENT STATUS / CREATED)
  * — heavy financial breakdown lives inside the row-click drawer, NOT
  * inline. Clicking a row opens `EnrollmentDetailsDrawer`, which renders
- * the 4-section breakdown (Plan / Coupon / Financial Summary / Payment
+ * the 3-section breakdown (Plan / Financial Summary / Payment
  * History) with status pills.
  *
  * Server-side filter pinned to `candidateType=INTERNAL` so this page
@@ -309,7 +309,7 @@ export default function InternalEnrollments() {
         </div>
       </div>
 
-      {/* Drawer — full 4-section breakdown (Plan / Coupon / Financial Summary / Payment History) */}
+      {/* Drawer — full 3-section breakdown (Plan / Financial Summary / Payment History) */}
       <EnrollmentDetailsDrawer
         enrollmentId={openId}
         onClose={() => setOpenId(null)}

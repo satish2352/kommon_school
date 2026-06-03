@@ -20,8 +20,12 @@ const EMPTY_PRICING = {
   discountPercent: '0',
   finalPrice:      '',
   discountLabel:   '',
+  externalPlanId:  '',
   status:          'ACTIVE',
 };
+
+// Mirrors backend Joi pattern. Trim before testing.
+const EXTERNAL_PLAN_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 const EMPTY_FORM = {
   name:           '',
@@ -62,6 +66,36 @@ function validateForm(form) {
   if (form.sortOrder !== '' && isNaN(Number(form.sortOrder))) {
     e.sortOrder = 'Sort order must be a number';
   }
+
+  // Pricing matrix row-level validation. Required Plan ID for every row that
+  // is being saved (has a basePrice). Also catches duplicates within the same
+  // plan so the user sees row-level inline errors instead of a 409 from the
+  // backend's cross-plan uniqueness check.
+  const pricingErrors = {};
+  const seenIds = new Map(); // normalized id -> durationMonths
+  for (const m of DURATION_MONTHS) {
+    const p = form.pricings[m];
+    if (p.basePrice === '' || p.basePrice == null) continue; // skipped row
+    const id = (p.externalPlanId || '').trim();
+    if (!id) {
+      pricingErrors[m] = 'Plan ID is required';
+      continue;
+    }
+    if (id.length > 100) {
+      pricingErrors[m] = 'Plan ID must be at most 100 characters';
+      continue;
+    }
+    if (!EXTERNAL_PLAN_ID_PATTERN.test(id)) {
+      pricingErrors[m] = 'Letters, digits, underscores, hyphens only';
+      continue;
+    }
+    if (seenIds.has(id)) {
+      pricingErrors[m] = `Duplicate of ${seenIds.get(id) === 1 ? '1 Month' : `${seenIds.get(id)} Months`}`;
+      continue;
+    }
+    seenIds.set(id, m);
+  }
+  if (Object.keys(pricingErrors).length) e.pricings = pricingErrors;
   return e;
 }
 
@@ -102,6 +136,7 @@ export default function PlanForm() {
               discountPercent: String(p.discountPercent ?? '0'),
               finalPrice:      String(p.finalPrice ?? ''),
               discountLabel:   p.discountLabel ?? '',
+              externalPlanId:  p.externalPlanId ?? '',
               status:          p.status ?? 'ACTIVE',
               id:              p.id,
             };
@@ -173,6 +208,7 @@ export default function PlanForm() {
             basePrice:       parseFloat(p.basePrice),
             discountPercent: parseFloat(p.discountPercent) || 0,
             discountLabel:   p.discountLabel.trim() || null,
+            externalPlanId:  p.externalPlanId.trim(),
             status:          p.status,
           };
         });
@@ -401,6 +437,9 @@ export default function PlanForm() {
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Discount %</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Final Price (₹)</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Discount Label</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">
+                  Plan ID <span className="text-red-500">*</span>
+                </th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Status</th>
               </tr>
             </thead>
@@ -448,6 +487,32 @@ export default function PlanForm() {
                         maxLength={100}
                         className="w-32 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
                       />
+                    </td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const rowErr = formErrors.pricings?.[months];
+                        const borderCls = rowErr
+                          ? 'border-red-400 focus:ring-red-300 focus:border-red-400'
+                          : 'border-slate-300 focus:ring-brand-300 focus:border-brand-400';
+                        return (
+                          <>
+                            <input
+                              type="text"
+                              value={p.externalPlanId}
+                              onChange={(e) => setPricingField(months, 'externalPlanId', e.target.value)}
+                              placeholder="e.g. SUMAGOTEST_SILVER_1MONTH"
+                              maxLength={100}
+                              autoComplete="off"
+                              spellCheck={false}
+                              className={`w-56 px-2 py-1.5 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 transition-colors ${borderCls}`}
+                              aria-invalid={rowErr ? 'true' : 'false'}
+                            />
+                            {rowErr && (
+                              <p className="mt-1 text-xs text-red-500">{rowErr}</p>
+                            )}
+                          </>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <select

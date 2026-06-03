@@ -85,7 +85,6 @@ export default function AdminBulkEnrollment() {
   const [plansForCourse, setPlansForCourse]         = useState([]);
   const [plansLoading, setPlansLoading]             = useState(false);
   const [selectedPlanId, setSelectedPlanId]         = useState('');
-  const [selectedCouponCode, setSelectedCouponCode] = useState('');
   const [feeBreakdown, setFeeBreakdown]             = useState(null);
   const [feeCalculating, setFeeCalculating]         = useState(false);
 
@@ -102,7 +101,6 @@ export default function AdminBulkEnrollment() {
     if (!selectedCourseId) {
       setPlansForCourse([]);
       setSelectedPlanId('');
-      setSelectedCouponCode('');
       setFeeBreakdown(null);
       return;
     }
@@ -121,9 +119,8 @@ export default function AdminBulkEnrollment() {
     () => courseList.find((c) => String(c.id) === String(selectedCourseId)) ?? null,
     [courseList, selectedCourseId],
   );
-  const coursePrice      = selectedCourse?.courseFee != null ? Number(selectedCourse.courseFee) : null;
-  const availableCoupons = (selectedPlan?.coupons ?? []).filter((c) => c.status === 'ACTIVE');
-  const planReady        = Boolean(selectedCourseId && selectedPlanId);
+  const coursePrice = selectedCourse?.courseFee != null ? Number(selectedCourse.courseFee) : null;
+  const planReady   = Boolean(selectedCourseId && selectedPlanId);
 
   /* ── Recalculate fee ── */
   useEffect(() => {
@@ -136,13 +133,12 @@ export default function AdminBulkEnrollment() {
     calculateFee({
       internalPlanId: Number(selectedPlanId),
       basePrice:      coursePrice,
-      couponCode:     selectedCouponCode || undefined,
     })
       .then((res) => { if (!cancelled) setFeeBreakdown(res); })
       .catch(() => { if (!cancelled) setFeeBreakdown(null); })
       .finally(() => { if (!cancelled) setFeeCalculating(false); });
     return () => { cancelled = true; };
-  }, [selectedPlanId, selectedCouponCode, coursePrice]);
+  }, [selectedPlanId, coursePrice]);
 
   /* ── File selection ─────────────────────────────────────────────────────── */
   const handleFileChange = (e) => {
@@ -209,7 +205,6 @@ export default function AdminBulkEnrollment() {
         courseId:           Number(selectedCourseId),
         internalPlanId:     Number(selectedPlanId),
         internalPlanRefId:  selectedPlan?.refId,
-        couponCode:         selectedCouponCode || undefined,
         feeBreakdown:       feeBreakdown
           ? {
               basePrice:   feeBreakdown.basePrice,
@@ -259,10 +254,10 @@ export default function AdminBulkEnrollment() {
           </div>
 
           <p className="text-xs text-slate-500 -mt-2 ml-8">
-            Every student in the CSV will be enrolled into this course and internal plan. Pick a coupon to apply the same discount to all rows.
+            Every student in the CSV will be enrolled into this course and internal plan.
           </p>
 
-          <div className="grid lg:grid-cols-3 gap-4 ml-8">
+          <div className="grid lg:grid-cols-2 gap-4 ml-8">
             {/* Course */}
             <Select
               label="Course"
@@ -271,7 +266,6 @@ export default function AdminBulkEnrollment() {
               onChange={(e) => {
                 setSelectedCourseId(e.target.value);
                 setSelectedPlanId('');
-                setSelectedCouponCode('');
               }}
               disabled={coursesLoading}
             >
@@ -295,10 +289,7 @@ export default function AdminBulkEnrollment() {
               label="Internal Plan"
               required
               value={selectedPlanId}
-              onChange={(e) => {
-                setSelectedPlanId(e.target.value);
-                setSelectedCouponCode('');
-              }}
+              onChange={(e) => setSelectedPlanId(e.target.value)}
               disabled={!selectedCourseId || plansLoading}
             >
               <option value="">
@@ -316,21 +307,6 @@ export default function AdminBulkEnrollment() {
                 </option>
               ))}
             </Select>
-
-            {/* Coupon */}
-            <Select
-              label="Coupon (optional)"
-              value={selectedCouponCode}
-              onChange={(e) => setSelectedCouponCode(e.target.value)}
-              disabled={!selectedPlanId}
-            >
-              <option value="">{!selectedPlanId ? '— Pick a plan first —' : '— No coupon —'}</option>
-              {availableCoupons.map((c) => (
-                <option key={c.id} value={c.code}>
-                  {c.code} — {c.discountType === 'PERCENT' ? `${c.discountValue}% off` : `${inr(c.discountValue)} off`}
-                </option>
-              ))}
-            </Select>
           </div>
 
           {/* Fee preview strip */}
@@ -341,12 +317,6 @@ export default function AdminBulkEnrollment() {
                   <div>
                     <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Per row</div>
                     <div className="text-slate-700 mt-0.5">{inr(feeBreakdown.basePrice)}</div>
-                  </div>
-                  <div>
-                    <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Discount</div>
-                    <div className={`mt-0.5 ${feeBreakdown.discount > 0 ? 'text-emerald-700 font-medium' : 'text-slate-400'}`}>
-                      {feeBreakdown.discount > 0 ? `− ${inr(feeBreakdown.discount)}` : '—'}
-                    </div>
                   </div>
                   <div>
                     <div className="text-[10px] uppercase tracking-wider text-emerald-700 font-semibold">Final / row</div>
@@ -360,11 +330,6 @@ export default function AdminBulkEnrollment() {
                   </svg>
                 )}
               </div>
-              {feeBreakdown.couponValid === false && selectedCouponCode && (
-                <p className="mt-2 text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-                  Coupon not applied: {feeBreakdown.couponReason}
-                </p>
-              )}
             </div>
           )}
         </div>
@@ -388,7 +353,7 @@ export default function AdminBulkEnrollment() {
               <li>Maximum 1 000 rows per upload</li>
               <li>Maximum file size: 2 MB</li>
               <li>Header row is required</li>
-              <li>Course + Internal Plan + Coupon picked above apply to every row</li>
+              <li>Course + Internal Plan picked above apply to every row</li>
             </ul>
           </div>
           <div className="shrink-0">

@@ -144,11 +144,11 @@ export default function EmployeeDashboard() {
         <h2 className="text-sm font-semibold text-slate-700 mb-3 mt-2 uppercase tracking-wider">
           Pipeline
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {loading ? (
             <>
               <TileSkeleton /><TileSkeleton /><TileSkeleton />
-              <TileSkeleton /><TileSkeleton /><TileSkeleton />
+              <TileSkeleton /><TileSkeleton />
             </>
           ) : (
             <>
@@ -175,12 +175,6 @@ export default function EmployeeDashboard() {
                 value={m.notInterested ?? 0}
                 tone="slate"
                 to="/employee/leads?followupStatus=not_interested"
-              />
-              <Tile
-                label="Lost"
-                value={m.lost ?? 0}
-                tone="red"
-                to="/employee/leads?followupStatus=lost"
               />
               <Tile
                 label="Closed"

@@ -51,6 +51,13 @@ function followUpBadgeVariant(status) {
 // Default selection is OPEN — actionable leads only. The terminal pills
 // (PAYMENT COMPLETED / CONVERTED / LOST / CLOSED) sit at the tail; ALL
 // at the very end shows everything for audit/lookback.
+// Statuses that are out of scope for the Follow-Ups module entirely
+// (per product decision). Historical rows with these statuses still
+// exist in the DB for audit but are never shown on this page — every
+// pill below sends this as excludeStatuses so they cannot leak through
+// even the ALL view.
+const HIDDEN_STATUSES = 'payment_completed,lost';
+
 const STATUS_FILTERS = [
   { key: 'open',     value: '',                   label: 'OPEN',             openOnly: true  },
   { key: 'new',      value: 'new',                label: 'NEW'                                },
@@ -59,9 +66,7 @@ const STATUS_FILTERS = [
   { key: 'cb',       value: 'call_back_later',    label: 'CALLBACK'                           },
   { key: 'int',      value: 'interested',         label: 'INTERESTED'                         },
   { key: 'pp',       value: 'payment_pending',    label: 'PAYMENT PENDING'                    },
-  { key: 'pc',       value: 'payment_completed',  label: 'PAYMENT COMPLETED'                  },
   { key: 'conv',     value: 'converted',          label: 'CONVERTED'                          },
-  { key: 'lost',     value: 'lost',               label: 'LOST'                               },
   { key: 'closed',   value: 'closed',             label: 'CLOSED'                             },
   { key: 'all',      value: '',                   label: 'ALL',              openOnly: false },
 ];
@@ -118,6 +123,13 @@ export default function FollowUps() {
       limit: 20,
       ...(selectedPill.value     ? { status:   selectedPill.value }     : {}),
       ...(selectedPill.openOnly  ? { openOnly: true }                   : {}),
+      // HIDDEN_STATUSES sit out of scope for this module entirely. The
+      // backend honours excludeStatuses only when no explicit status /
+      // openOnly is set, so this only takes effect on the ALL pill —
+      // which is exactly when it's needed.
+      ...(!selectedPill.value && !selectedPill.openOnly
+        ? { excludeStatuses: HIDDEN_STATUSES }
+        : {}),
       ...(assignedTo !== 'ALL'   ? { assignedTo }                       : {}),
       _reloadKey: reloadKey, // changing this forces useFollowUps to refetch
     }),

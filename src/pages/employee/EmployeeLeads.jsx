@@ -20,6 +20,10 @@ import {
 // Employee-facing followup status labels. The DB enum has more values
 // (legacy + admin-only) — we expose only the buckets an employee actually
 // uses day-to-day.
+// Excludes `payment_completed` and `lost` - those statuses are out of
+// scope for the Follow-Up module per product decision. Historical rows
+// with those statuses are not surfaced anywhere; admins can still see
+// them via the dedicated admin Enrollments page for audit.
 const FOLLOWUP_STATUS_FILTERS = [
   { value: '',                   label: 'All'                 },
   { value: 'new',                label: 'New'                 },
@@ -29,7 +33,6 @@ const FOLLOWUP_STATUS_FILTERS = [
   { value: 'payment_pending',    label: 'Payment pending'     },
   { value: 'converted',          label: 'Converted'           },
   { value: 'not_interested',     label: 'Not interested'      },
-  { value: 'lost',               label: 'Lost'                },
   { value: 'closed',             label: 'Closed'              },
 ];
 

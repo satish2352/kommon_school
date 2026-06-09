@@ -14,22 +14,24 @@ import {
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
-// Status options surfaced to employees. Mirrors the list-page filter set
-// minus 'all'. Order = typical lifecycle progression to give the UI a
-// natural reading direction.
+// Status options surfaced to employees. Order = typical lifecycle
+// progression to give the UI a natural reading direction.
+// `payment_completed` and `lost` are intentionally excluded - they are
+// out of scope for this module per product decision (paid leads finish
+// outside the follow-up pipeline; lost has been deprecated as an
+// outcome). Use 'converted' for successful close, 'closed' for any other
+// final state.
 const STATUS_OPTIONS = [
   { value: 'new',                label: 'New' },
   { value: 'contacted',          label: 'Contacted' },
   { value: 'followup_scheduled', label: 'Follow-up scheduled' },
   { value: 'interested',         label: 'Interested' },
   { value: 'payment_pending',    label: 'Payment pending' },
-  { value: 'payment_completed',  label: 'Payment completed' },
   { value: 'converted',          label: 'Converted' },
   { value: 'not_interested',     label: 'Not interested' },
   { value: 'call_back_later',    label: 'Call back later' },
   { value: 'invalid_number',     label: 'Invalid number' },
   { value: 'no_response',        label: 'No response' },
-  { value: 'lost',               label: 'Lost' },
   { value: 'closed',             label: 'Closed' },
 ];
 

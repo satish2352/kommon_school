@@ -278,7 +278,9 @@ export default function EnrollmentDetailsDrawer({ enrollmentId, onClose }) {
                   <Section number="1" title="Plan Details">
                     <Row label="Course"   value={data.internalPlan?.course?.name ?? '—'} />
                     <Row label="Plan"     value={data.internalPlan?.name ?? '—'} />
-                    <Row label="Duration" value={DURATION_LABEL[data.internalPlan?.duration] ?? data.internalPlan?.duration ?? '—'} />
+                    {/* Prefer the backend-derived label (parsed from the Plan ID,
+                        e.g. "30 Days"); fall back to the legacy enum label. */}
+                    <Row label="Duration" value={data.internalPlan?.durationLabel ?? DURATION_LABEL[data.internalPlan?.duration] ?? data.internalPlan?.duration ?? '—'} />
                     <Row
                       label="Original Amount"
                       value={paiseToInr(data.basePricePaise)}

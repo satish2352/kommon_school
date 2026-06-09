@@ -613,9 +613,11 @@ export default function Enrollments() {
                     </Badge>
                   </Td>
                   {/* Active Plan — latest PAID plan's Plan ID + days left.
-                      Shown for EXTERNAL students (per requirement); '—' otherwise. */}
+                      Shown for BOTH external and internal students: for internal
+                      rows the Plan ID is the internal plan's externalPlanId
+                      (from /admin/internal-plans); '—' when no paid plan yet. */}
                   <Td>
-                    {ctype === 'EXTERNAL' && e.activePlan?.externalPlanId ? (
+                    {e.activePlan?.externalPlanId ? (
                       <div>
                         <span className="font-mono text-[11px] text-slate-700">{e.activePlan.externalPlanId}</span>
                         {e.activePlan.daysLeft != null && (

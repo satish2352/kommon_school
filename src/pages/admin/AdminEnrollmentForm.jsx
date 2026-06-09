@@ -5,6 +5,7 @@ import { adminEnrollmentService } from '../../services/adminEnrollmentService';
 import { internalPlansService } from '../../services/internalPlansService';
 import { courseService } from '../../services/courseService';
 import { calculate as calculateFee } from '../../services/feeCalculationService';
+import { internalDurationLabel } from '../../utils/internalPlanDuration';
 import {
   sanitizeName,
   sanitizePhone,
@@ -52,13 +53,6 @@ const SOURCE_MAP = {
   'Friend / Colleague': 'FRIEND',
   'Google Search':      'GOOGLE',
   'Other':              'OTHER',
-};
-
-const DURATION_LABELS = {
-  '1_MONTH':   '1 Month',
-  '3_MONTHS':  '3 Months',
-  '6_MONTHS':  '6 Months',
-  '12_MONTHS': '12 Months',
 };
 
 // Compat shim — remove when backend is updated to accept internalPlanId natively.
@@ -338,7 +332,7 @@ function PlanCard({ plan, coursePrice, selected, onSelect }) {
             {plan.name}
           </h4>
           <Badge variant={selected ? 'success' : 'info'}>
-            {DURATION_LABELS[plan.duration] ?? plan.duration}
+            {internalDurationLabel(plan)}
           </Badge>
         </div>
         <div
@@ -951,7 +945,7 @@ export default function AdminEnrollmentForm() {
                     <br />
                     <span className="text-slate-500">{selectedPlan.name}</span>
                     <br />
-                    <span className="text-slate-400">{DURATION_LABELS[selectedPlan.duration] ?? selectedPlan.duration}</span>
+                    <span className="text-slate-400">{internalDurationLabel(selectedPlan)}</span>
                   </p>
                 </div>
               )}
@@ -999,7 +993,7 @@ export default function AdminEnrollmentForm() {
                 {[
                   ['Course',        selectedCourse?.nameOfCourseAsGroup ?? '—'],
                   ['Plan',          selectedPlan.name],
-                  ['Duration',      DURATION_LABELS[selectedPlan.duration] ?? selectedPlan.duration],
+                  ['Duration',      internalDurationLabel(selectedPlan)],
                   ['Base Price',    inr(feeBreakdown.basePrice)],
                   ['Final Payable', inr(feeBreakdown.finalAmount)],
                 ].map(([k, v]) => (

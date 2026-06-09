@@ -59,8 +59,8 @@ function PaymentStatusPill({ status }) {
   );
 }
 
-/* ─── Skeleton rows (7 cols) ──────────────────────────────────────────── */
-const COLS = 7;
+/* ─── Skeleton rows (8 cols) ──────────────────────────────────────────── */
+const COLS = 8;
 function SkeletonRows({ count = 7 }) {
   return (
     <>
@@ -236,7 +236,7 @@ export default function InternalEnrollments() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Enrollment ID', 'Name', 'Email', 'Phone', 'Type', 'Status', 'Created'].map((h) => (
+              {['Enrollment ID', 'Name', 'Email', 'Phone', 'Type', 'Active Plan', 'Status', 'Created'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
@@ -294,6 +294,26 @@ export default function InternalEnrollments() {
                   <Td className="text-slate-600">{e.phone}</Td>
                   <Td>
                     <Badge variant="info">Internal</Badge>
+                  </Td>
+                  {/* Active Plan — latest PAID plan's Plan ID (internal plan's
+                      externalPlanId, from /admin/internal-plans) + days left. */}
+                  <Td>
+                    {e.activePlan?.externalPlanId ? (
+                      <div>
+                        <span className="font-mono text-[11px] text-slate-700">{e.activePlan.externalPlanId}</span>
+                        {e.activePlan.daysLeft != null && (
+                          <div className={`text-[11px] font-semibold ${
+                            e.activePlan.daysLeft <= 0 ? 'text-red-600'
+                            : e.activePlan.daysLeft <= 7 ? 'text-amber-600'
+                            : 'text-emerald-600'
+                          }`}>
+                            {e.activePlan.daysLeft > 0 ? `${e.activePlan.daysLeft} day${e.activePlan.daysLeft === 1 ? '' : 's'} left` : 'Expired'}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-300 text-xs">—</span>
+                    )}
                   </Td>
                   <Td>
                     {/* Same `effectiveStatus()` used by the filter, so

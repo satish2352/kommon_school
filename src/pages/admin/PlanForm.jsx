@@ -66,35 +66,73 @@ function calcFinalPrice(basePrice, discountPercent) {
   return final > 0 ? final.toFixed(2) : '';
 }
 
-// Per-row pricing validation. Returns a map of row._key -> { duration?, planId? }.
-// Only rows that will actually be saved (have a basePrice) are validated.
+// A row is "blank" when none of its meaningful fields are filled (defaulted
+// unit/discount/status are ignored). Blank rows are allowed while editing but
+// must be filled in or removed before the form can be saved.
+function isBlankPricingRow(row) {
+  return !String(row.durationMonths ?? '').trim()
+    && (row.basePrice === '' || row.basePrice == null)
+    && !String(row.externalPlanId ?? '').trim()
+    && !String(row.discountLabel ?? '').trim();
+}
+
+// Per-row pricing validation. Returns a map of row._key -> { duration?, basePrice?, planId? }.
 // Computed live on every render so the admin sees duplicate-Plan-ID and
 // duplicate-duration errors as they type — not just on save.
-function computePricingIssues(rows) {
+//
+// requireAll: when true, EVERY row (including blank ones) must be fully filled,
+// so a half-finished or empty row blocks the save. When false (the default,
+// live-typing pass) blank rows are left alone so a freshly-opened form / a
+// just-added empty row doesn't show a wall of red before the user has typed.
+function computePricingIssues(rows, { requireAll = false } = {}) {
   const issues = {};
-  const idCounts  = {}; // normalized Plan ID -> occurrences
-  const durCounts = {}; // duration (number)  -> occurrences
+  const idCounts  = {}; // normalized Plan ID            -> occurrences
+  const durCounts = {}; // "<value>-<UNIT>" duration key -> occurrences
 
   for (const row of rows) {
-    if (row.basePrice === '' || row.basePrice == null) continue; // skipped row
     const id = (row.externalPlanId || '').trim();
     if (id) idCounts[id] = (idCounts[id] || 0) + 1;
-    const dur = parseInt(String(row.durationMonths ?? '').trim(), 10);
-    if (!isNaN(dur)) durCounts[dur] = (durCounts[dur] || 0) + 1;
+    // Number() (not parseInt) so 1 and 1.5 are kept distinct rather than both
+    // truncated to 1. A duration is only a duplicate when BOTH the number and
+    // the unit match, so "2 Days" and "2 Months" coexist but two "2 Months"
+    // (or two "1.5 Months") rows clash.
+    const durRaw = String(row.durationMonths ?? '').trim();
+    const dur = durRaw === '' ? NaN : Number(durRaw);
+    const unit = (row.durationUnit || 'MONTHS').toUpperCase();
+    if (!isNaN(dur)) {
+      const durKey = `${dur}-${unit}`;
+      durCounts[durKey] = (durCounts[durKey] || 0) + 1;
+    }
   }
 
   for (const row of rows) {
-    if (row.basePrice === '' || row.basePrice == null) continue;
     const rowIssue = {};
+
+    if (isBlankPricingRow(row)) {
+      // Flag a blank row only on save so the form doesn't pre-yell at the user.
+      if (requireAll) {
+        rowIssue.duration  = 'Duration is required';
+        rowIssue.basePrice = 'Base price is required';
+        rowIssue.planId    = 'Plan ID is required';
+        issues[row._key] = rowIssue;
+      }
+      continue;
+    }
 
     const unit = (row.durationUnit || 'MONTHS').toUpperCase();
     const maxDur = MAX_DURATION_BY_UNIT[unit] ?? 120;
     const durRaw = String(row.durationMonths ?? '').trim();
-    const dur = parseInt(durRaw, 10);
+    const dur = durRaw === '' ? NaN : Number(durRaw);
     if (!durRaw)                     rowIssue.duration = 'Duration is required';
-    else if (isNaN(dur) || dur < 1)  rowIssue.duration = 'Must be a positive whole number';
+    else if (isNaN(dur) || dur <= 0) rowIssue.duration = 'Must be a positive number';
     else if (dur > maxDur)           rowIssue.duration = `Must be at most ${maxDur} ${unit === 'DAYS' ? 'days' : 'months'}`;
-    else if (durCounts[dur] > 1)     rowIssue.duration = 'Duplicate duration';
+    else if (durCounts[`${dur}-${unit}`] > 1) rowIssue.duration = 'Duplicate duration (same number and unit)';
+
+    const baseRaw = String(row.basePrice ?? '').trim();
+    const base = Number(baseRaw);
+    if (!baseRaw)                     rowIssue.basePrice = 'Base price is required';
+    else if (isNaN(base) || base < 0) rowIssue.basePrice = 'Must be 0 or more';
+    else if (base > 999999.99)        rowIssue.basePrice = 'Max ₹999,999.99';
 
     const id = (row.externalPlanId || '').trim();
     if (!id)                                     rowIssue.planId = 'Plan ID is required';
@@ -123,8 +161,13 @@ function validateForm(form, isEdit) {
   if (!isEdit && pricedRows.length === 0) {
     e.pricingsGeneral = 'Add at least one pricing row with a base price';
   }
-  const pricingIssues = computePricingIssues(form.pricings);
-  if (Object.keys(pricingIssues).length) e.pricings = pricingIssues;
+  // On save, every row must be complete (or removed) — no silently-skipped
+  // blank/partial rows.
+  const pricingIssues = computePricingIssues(form.pricings, { requireAll: true });
+  if (Object.keys(pricingIssues).length) {
+    e.pricings = pricingIssues;
+    if (!e.pricingsGeneral) e.pricingsGeneral = 'Fill in every pricing row completely, or remove the empty ones, before saving.';
+  }
 
   return e;
 }
@@ -139,6 +182,9 @@ export default function PlanForm() {
   const [featureInput, setFeatureInput] = useState('');
   const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving]         = useState(false);
+  // Becomes true after the first save attempt; switches the pricing matrix into
+  // "every row required" mode so blank/partial rows light up.
+  const [triedSave, setTriedSave]   = useState(false);
   const [loading, setLoading]       = useState(isEdit);
   const [planName, setPlanName]     = useState('');
   const [isSystemDefault, setIsSystemDefault] = useState(false);
@@ -154,7 +200,9 @@ export default function PlanForm() {
         setIsSystemDefault(!!plan.isSystemDefault);
         // Reconstruct pricing rows from plan.pricings array (any durations).
         const pricingRows = (plan.pricings ?? []).map((p) => makePricingRow({
-          durationMonths:  String(p.durationMonths ?? ''),
+          // Decimal comes back as a string like "1.00"/"1.50"; Number() strips
+          // trailing zeros so the input shows "1" / "1.5", not "1.00".
+          durationMonths:  p.durationMonths != null ? String(Number(p.durationMonths)) : '',
           durationUnit:    (p.durationUnit ?? 'MONTHS').toUpperCase(),
           basePrice:       String(p.basePrice ?? ''),
           discountPercent: String(p.discountPercent ?? '0'),
@@ -219,6 +267,7 @@ export default function PlanForm() {
 
   /* ── Save handler ── */
   const handleSave = async () => {
+    setTriedSave(true);
     const e = validateForm(form, isEdit);
     if (Object.keys(e).length) { setFormErrors(e); return; }
     setFormErrors({});
@@ -229,7 +278,7 @@ export default function PlanForm() {
       const pricingsArray = form.pricings
         .filter((r) => r.basePrice !== '' && r.basePrice != null)
         .map((r) => ({
-          durationMonths:  parseInt(r.durationMonths, 10),
+          durationMonths:  Number(r.durationMonths),
           durationUnit:    (r.durationUnit || 'MONTHS').toUpperCase(),
           basePrice:       parseFloat(r.basePrice),
           discountPercent: parseFloat(r.discountPercent) || 0,
@@ -286,7 +335,9 @@ export default function PlanForm() {
 
   /* ─── Render ─────────────────────────────────────────────────────────── */
   // Live per-row pricing issues (duplicate Plan ID / duration, missing fields).
-  const pricingIssues = computePricingIssues(form.pricings);
+  // After a save attempt, blank rows are flagged too so the user sees exactly
+  // which rows still need completing.
+  const pricingIssues = computePricingIssues(form.pricings, { requireAll: triedSave });
 
   if (loading) {
     return (
@@ -484,12 +535,12 @@ export default function PlanForm() {
                       <div className="flex items-center gap-1.5">
                         <input
                           type="number"
-                          min="1"
+                          min="0"
                           max={MAX_DURATION_BY_UNIT[(p.durationUnit || 'MONTHS').toUpperCase()] ?? 120}
-                          step="1"
+                          step="any"
                           value={p.durationMonths}
                           onChange={(e) => setPricingRow(p._key, 'durationMonths', e.target.value)}
-                          placeholder="e.g. 1"
+                          placeholder="e.g. 1.5"
                           className={`w-20 px-2 py-1.5 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 transition-colors ${inputBorder(!!rowErr.duration)}`}
                           aria-invalid={rowErr.duration ? 'true' : 'false'}
                         />
@@ -516,8 +567,12 @@ export default function PlanForm() {
                         value={p.basePrice}
                         onChange={(e) => setPricingRow(p._key, 'basePrice', e.target.value)}
                         placeholder="0.00"
-                        className="w-28 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
+                        className={`w-28 px-2 py-1.5 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 transition-colors ${inputBorder(!!rowErr.basePrice)}`}
+                        aria-invalid={rowErr.basePrice ? 'true' : 'false'}
                       />
+                      {rowErr.basePrice && (
+                        <p className="mt-1 text-xs text-red-500">{rowErr.basePrice}</p>
+                      )}
                     </td>
                     <td className="px-4 py-3 align-top">
                       <input
@@ -601,9 +656,8 @@ export default function PlanForm() {
 
           <p className="text-xs text-slate-400 mt-3 px-4">
             Add a row per duration and choose its unit (Days or Months). Each Plan ID must be unique within
-            this plan. {isEdit
-              ? 'Each row is upserted (created or updated) on save; leave Base Price empty to skip a row.'
-              : 'Leave Base Price empty to skip a row.'}
+            this plan. Every row must be fully filled in (Duration, Base Price, Plan ID) — or removed with the
+            trash icon — before you can save.{isEdit ? ' Each saved row is created or updated (upserted).' : ''}
           </p>
         </div>
       </Card>

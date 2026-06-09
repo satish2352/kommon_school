@@ -16,21 +16,48 @@ import {
 } from '../../components/admin';
 
 /* ─── Status badge variant map ───────────────────────────────────────────── */
+// Keyed on UPPERCASE so it stays compatible with rows already arriving as
+// `NEW` / `CONTACTED` etc. (the backend uppercases on output). New enum
+// values (FOLLOWUP_SCHEDULED, CONVERTED, LOST, etc.) added in Phase 1 are
+// included so badges colour correctly.
 function followUpBadgeVariant(status) {
   const map = {
-    NEW:             'info',
-    CONTACTED:       'info',
-    FOLLOW_UP:       'warning',
-    CALLBACK:        'warning',
-    PAYMENT_PENDING: 'warning',
-    CONVERTED:       'success',
-    NOT_INTERESTED:  'neutral',
-    CLOSED:          'neutral',
+    NEW:                 'info',
+    CONTACTED:           'info',
+    FOLLOWUP_SCHEDULED:  'warning',
+    CALL_BACK_LATER:     'warning',
+    INTERESTED:          'success',
+    PAYMENT_PENDING:     'warning',
+    PAYMENT_COMPLETED:   'success',
+    CONVERTED:           'success',
+    NOT_INTERESTED:      'neutral',
+    NO_RESPONSE:         'warning',
+    INVALID_NUMBER:      'danger',
+    LOST:                'danger',
+    CLOSED:              'neutral',
+    FOLLOWUP_CLOSED:     'neutral',
   };
   return map[status] ?? 'neutral';
 }
 
-const STATUS_FILTERS = ['', 'NEW', 'CONTACTED', 'FOLLOW_UP', 'CALLBACK', 'CONVERTED', 'CLOSED'];
+// Status pills. Each pill is { label, value } where value is the DB enum
+// value (the backend lowercases incoming query params before filtering, so
+// we send the enum's canonical lowercase form). Previous pills like
+// FOLLOW_UP / CALLBACK didn't map to any DB enum value, which is why the
+// admin Follow-Ups page surfaced "Invalid data" when those pills were
+// clicked — Prisma rejected the unknown enum value.
+const STATUS_FILTERS = [
+  { value: '',                   label: 'All' },
+  { value: 'new',                label: 'NEW' },
+  { value: 'contacted',          label: 'CONTACTED' },
+  { value: 'followup_scheduled', label: 'FOLLOW-UP' },
+  { value: 'call_back_later',    label: 'CALLBACK' },
+  { value: 'interested',         label: 'INTERESTED' },
+  { value: 'payment_pending',    label: 'PAYMENT PENDING' },
+  { value: 'converted',          label: 'CONVERTED' },
+  { value: 'lost',               label: 'LOST' },
+  { value: 'closed',             label: 'CLOSED' },
+];
 
 /* ─── Skeleton rows ──────────────────────────────────────────────────────── */
 const HEADER_COLS = [
@@ -135,16 +162,16 @@ export default function FollowUps() {
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((s) => (
             <button
-              key={s || 'all'}
+              key={s.value || 'all'}
               type="button"
-              onClick={() => switchStatus(s)}
+              onClick={() => switchStatus(s.value)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-200 ${
-                status === s
+                status === s.value
                   ? 'bg-emerald-600 text-white'
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}
             >
-              {s || 'All'}
+              {s.label}
             </button>
           ))}
         </div>

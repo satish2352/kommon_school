@@ -91,7 +91,7 @@ function CreateEmployeeModal({ open, onClose, onCreated }) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Create employee">
+    <Modal isOpen={open} onClose={onClose} title="Create employee">
       <form onSubmit={submit} className="space-y-4">
         <Input
           label="Email"

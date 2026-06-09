@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createPublicPaymentOrder, verifyPublicPayment, getPaymentStatus } from '../../services/enrollmentApi'
 import PlanSummaryCard from './PlanSummaryCard'
+import { useBranding } from '../../context/BrandingContext'
 
 const RZP_SCRIPT = 'https://checkout.razorpay.com/v1/checkout.js'
 
@@ -113,6 +114,7 @@ function Spinner({ className = '' }) {
 //   failed    — unrecoverable error
 
 export default function PaymentFlow({ enrollment, onSuccess, onClose, selectedPlan }) {
+  const { brandName } = useBranding()
   const [phase, setPhase] = useState('loading')
   const [error, setError] = useState(null)
   const [order, setOrder] = useState(null)
@@ -306,7 +308,7 @@ export default function PaymentFlow({ enrollment, onSuccess, onClose, selectedPl
       amount: order.amount,
       currency: order.currency,
       order_id: order.razorpayOrderId,
-      name: 'Kommon School',
+      name: brandName,
       description: `Enrollment ${order.enrollmentId}`,
       prefill: {
         name: enrollment?.name ?? '',

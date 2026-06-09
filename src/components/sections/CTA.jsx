@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useBranding } from '../../context/BrandingContext'
 import { useEnrollModal } from '../../context/EnrollModalContext'
 
 export default function CTA({
@@ -10,6 +11,7 @@ export default function CTA({
   secondaryTo = '/pricing',
 }) {
   const { open: openEnroll } = useEnrollModal()
+  const { brandName } = useBranding()
   return (
     <section className="relative overflow-hidden bg-[#1A1A2E] py-16 md:py-24">
       {/* Decorations */}
@@ -85,7 +87,7 @@ export default function CTA({
           data-aos="fade-up"
           data-aos-delay="400"
         >
-          Powered by <span className="text-white/70 font-medium">Kommon School</span> | Brought to you by{' '}
+          Powered by <span className="text-white/70 font-medium">{brandName}</span> | Brought to you by{' '}
           <span className="text-white/70 font-medium">Sumago Infotech Pvt Ltd</span>
         </p>
       </div>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useBranding } from '../../context/BrandingContext'
 import { Link } from 'react-router-dom'
 import { useEnrollModal } from '../../context/EnrollModalContext'
 
@@ -82,6 +83,7 @@ const beforeAfter = [
 
 export default function IndividualsSection() {
   const { open: openEnroll } = useEnrollModal()
+  const { brandName } = useBranding()
   const [activeStep, setActiveStep] = useState(0)
   const [resetting, setResetting] = useState(false)
   const hasLooped = useRef(false)
@@ -219,7 +221,7 @@ export default function IndividualsSection() {
         <div className="text-center mb-12" data-aos="fade-up">
           <span className="chip-badge chip-shine mb-3">The Problem</span>
           <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">Why Most Candidates Fail to Impress</h3>
-          <p className="text-gray-500 text-sm max-w-xl mx-auto">It&apos;s rarely a knowledge gap. It&apos;s a communication gap — and Kommon School closes it.</p>
+          <p className="text-gray-500 text-sm max-w-xl mx-auto">It&apos;s rarely a knowledge gap. It&apos;s a communication gap — and {brandName} closes it.</p>
         </div>
 
         <div className="space-y-4">
@@ -273,7 +275,7 @@ export default function IndividualsSection() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <span className="text-green-600 text-[10px] font-bold uppercase tracking-widest">Kommon School Solution</span>
+                    <span className="text-green-600 text-[10px] font-bold uppercase tracking-widest">{brandName} Solution</span>
                   </div>
                   <p className="text-gray-800 font-semibold text-sm leading-relaxed mb-3">{p.solution}</p>
                 </div>
@@ -377,7 +379,7 @@ export default function IndividualsSection() {
       <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-3xl p-6 md:p-12 mb-12 md:mb-20 border border-gray-100">
         <div className="text-center mb-12" data-aos="fade-up">
           <span className="chip-badge chip-shine mb-3">Transformation</span>
-          <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">Before Kommon School vs After</h3>
+          <h3 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">Before {brandName} vs After</h3>
           <p className="text-gray-500 text-sm max-w-lg mx-auto">Real candidates. Real change. Here&apos;s what shifts when you practice with AI.</p>
         </div>
         <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">

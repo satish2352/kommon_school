@@ -13,6 +13,7 @@ import AdminLayout from '../pages/admin/AdminLayout'
 import Dashboard from '../pages/admin/Dashboard'
 import Enrollments from '../pages/admin/Enrollments'
 import InternalEnrollments from '../pages/admin/InternalEnrollments'
+import ExternalEnrollments from '../pages/admin/ExternalEnrollments'
 import Payments from '../pages/admin/Payments'
 import FollowUps from '../pages/admin/FollowUps'
 import Webhooks from '../pages/admin/Webhooks'
@@ -30,6 +31,7 @@ import AdminBulkEnrollment from '../pages/admin/AdminBulkEnrollment'
 import CourseNames from '../pages/admin/CourseNames'
 import EmailLogs from '../pages/admin/EmailLogs'
 import RazorpayConfigs from '../pages/admin/RazorpayConfigs'
+import Branding from '../pages/admin/Branding'
 import StudentHistory from '../pages/admin/StudentHistory'
 import PanelLayout from '../pages/panel/PanelLayout'
 import PanelDashboard from '../pages/panel/PanelDashboard'
@@ -99,6 +101,7 @@ export default function AppRoutes() {
               <Route path="enrollments" element={<Enrollments />} />
               <Route path="students/:email" element={<StudentHistory />} />
               <Route path="internal-enrollments" element={<InternalEnrollments />} />
+              <Route path="external-enrollments" element={<ExternalEnrollments />} />
               <Route path="enrollments/new" element={<AdminEnrollmentForm />} />
               <Route path="enrollments/bulk" element={<AdminBulkEnrollment />} />
               <Route path="payments" element={<Payments />} />
@@ -118,6 +121,7 @@ export default function AppRoutes() {
               <Route path="course-names" element={<CourseNames />} />
               <Route path="email-logs" element={<EmailLogs />} />
               <Route path="razorpay-configs" element={<RazorpayConfigs />} />
+              <Route path="branding" element={<Branding />} />
             </Route>
             <Route path="/*" element={<MainLayout />} />
           </Routes>

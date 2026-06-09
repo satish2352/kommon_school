@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useBranding } from '../context/BrandingContext'
 import ContactTabs from '../components/common/ContactTabs'
 
 const stats = [
@@ -15,6 +16,7 @@ const nextSteps = [
 ]
 
 export default function Contact() {
+  const { brandName } = useBranding()
   const [form, setForm]         = useState({ name: '', email: '', phone: '', message: '' })
   const [submitted, setSubmitted] = useState(false)
   const [errors, setErrors]     = useState({})
@@ -215,7 +217,7 @@ export default function Contact() {
                       </svg>
                     </div>
                     <div>
-                      <div className="font-bold text-sm text-white">Kommon School AI</div>
+                      <div className="font-bold text-sm text-white">{brandName} AI</div>
                       <div className="text-white/50 text-[10px]">by Sumago Infotech Pvt Ltd</div>
                     </div>
                   </div>
@@ -241,7 +243,7 @@ export default function Contact() {
                   </div>
                 </div>
                 <div className="mt-6 pt-5 border-t border-white/10 text-white/40 text-[10px]">
-                  Powered by <span className="text-white/60 font-medium">Kommon School</span> · Brought to you by{' '}
+                  Powered by <span className="text-white/60 font-medium">{brandName}</span> · Brought to you by{' '}
                   <span className="text-white/60 font-medium">Sumago Infotech Pvt Ltd</span>
                 </div>
               </div>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useBranding } from '../../context/BrandingContext'
 
 const stats = [
   { value: '27+', label: 'AI Parameters' },
@@ -7,6 +8,7 @@ const stats = [
 ]
 
 export default function Hero() {
+  const { brandName } = useBranding()
   return (
     <section className="relative min-h-screen hero-bg-animated overflow-hidden flex items-center pt-16">
       {/* Background decorations */}
@@ -97,7 +99,7 @@ export default function Hero() {
             data-aos="fade-up"
             data-aos-delay="500"
           >
-            Powered by <span className="text-gray-300 font-medium">Kommon School</span> | Brought to you by{' '}
+            Powered by <span className="text-gray-300 font-medium">{brandName}</span> | Brought to you by{' '}
             <span className="text-gray-300 font-medium">Sumago Infotech Pvt Ltd</span>
           </p>
 

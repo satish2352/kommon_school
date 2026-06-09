@@ -3,6 +3,7 @@ import AOS from 'aos'
 import 'aos/dist/aos.css'
 import AppRoutes from './routes/AppRoutes'
 import { AuthProvider } from './context/AuthContext'
+import { BrandingProvider } from './context/BrandingContext'
 
 function App() {
   useEffect(() => {
@@ -15,9 +16,11 @@ function App() {
   }, [])
 
   return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
+    <BrandingProvider>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrandingProvider>
   )
 }
 

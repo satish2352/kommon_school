@@ -1,21 +1,17 @@
 /**
- * InternalEnrollments
+ * ExternalEnrollments
  * -------------------
- * Dedicated admin page for the internal-flow enrollments only.
+ * Dedicated admin page for the public-website (EXTERNAL) enrollments only.
  *
- * Listing intentionally mirrors the simpler `/admin/enrollments` table
- * (ENROLLMENT ID / NAME / EMAIL / PHONE / TYPE / PAYMENT STATUS / CREATED)
- * — heavy financial breakdown lives inside the row-click drawer, NOT
- * inline. Clicking a row opens `EnrollmentDetailsDrawer`, which renders
- * the 3-section breakdown (Plan / Financial Summary / Payment
- * History) with status pills.
- *
- * Server-side filter pinned to `candidateType=INTERNAL` so this page
- * never shows public-website rows even if the user types into the URL.
+ * Mirrors the Internal Enrollments table, but pinned to candidateType=EXTERNAL
+ * via the shared grouped endpoint (one row per email, latest first). External
+ * rows have no internal payment-status snapshot, so the Status column shows the
+ * enrollment lifecycle status. Clicking a row (or the email) opens that
+ * student's full history.
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
 import {
   PageHeader,
@@ -23,44 +19,28 @@ import {
   Badge,
   Button,
   Input,
-  Select,
   Table,
   Th,
   Td,
   Tr,
   Skeleton,
   EmptyState,
-  EnrollmentDetailsDrawer,
 } from '../../components/admin';
 
-/* ─── Payment-status pill (PAID / PARTIAL / PENDING / FULLY_DISCOUNTED) ── */
-const PAY_STATUS_STYLE = {
-  PAID:             'bg-emerald-50 text-emerald-700 border-emerald-200',
-  PARTIAL:          'bg-amber-50 text-amber-700 border-amber-200',
-  PENDING:          'bg-rose-50 text-rose-700 border-rose-200',
-  FULLY_DISCOUNTED: 'bg-violet-50 text-violet-700 border-violet-200',
-};
-const PAY_STATUS_LABEL = {
-  PAID:             'PAID',
-  PARTIAL:          'PARTIAL',
-  PENDING:          'PENDING',
-  FULLY_DISCOUNTED: 'FULLY DISCOUNTED',
-};
-function PaymentStatusPill({ status }) {
-  if (!status) return <span className="text-slate-400">—</span>;
-  return (
-    <span
-      className={`inline-flex items-center px-3 py-0.5 rounded-full border text-[11px] font-semibold tracking-wide whitespace-nowrap ${
-        PAY_STATUS_STYLE[status] ?? 'bg-slate-50 text-slate-600 border-slate-200'
-      }`}
-    >
-      {PAY_STATUS_LABEL[status] ?? status}
-    </span>
-  );
+const COLS = 8;
+
+/* ─── Status badge variant map (matches the main Enrollments page) ─────── */
+function enrollmentBadgeVariant(status) {
+  const map = {
+    NEW:       'info',
+    ACTIVE:    'success',
+    PENDING:   'warning',
+    CANCELLED: 'danger',
+    COMPLETED: 'neutral',
+  };
+  return map[status] ?? 'neutral';
 }
 
-/* ─── Skeleton rows (8 cols) ──────────────────────────────────────────── */
-const COLS = 8;
 function SkeletonRows({ count = 7 }) {
   return (
     <>
@@ -75,44 +55,21 @@ function SkeletonRows({ count = 7 }) {
   );
 }
 
-export default function InternalEnrollments() {
+export default function ExternalEnrollments() {
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
-  const [paymentStatus, setPaymentStatus] = useState('ALL');
-  const [fromDate, setFromDate]           = useState('');
-  const [toDate, setToDate]               = useState('');
+  const [page, setPage]         = useState(1);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate]     = useState('');
 
-  const [openId, setOpenId] = useState(null);
-
-  /* ?focus=<id> deep-link from the New Enrollment success screen.
-     Open the drawer for the newly-created enrollment on landing, then
-     strip the query param so a refresh doesn't keep re-opening it. */
-  const [searchParams, setSearchParams] = useSearchParams();
-  useEffect(() => {
-    const focus = searchParams.get('focus');
-    if (focus) {
-      setOpenId(focus);
-      const next = new URLSearchParams(searchParams);
-      next.delete('focus');
-      setSearchParams(next, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const filtersActive = paymentStatus !== 'ALL' || fromDate || toDate;
-  const resetFilters = () => {
-    setPaymentStatus('ALL');
-    setFromDate('');
-    setToDate('');
-    setPage(1);
-  };
+  const filtersActive = fromDate || toDate;
+  const resetFilters = () => { setFromDate(''); setToDate(''); setPage(1); };
 
   // Grouped endpoint returns ONE row per email (latest enrollment + count),
-  // already pinned to INTERNAL server-side. Payment-status filter stays
-  // client-side (applied against the representative row's effective status).
+  // pinned to EXTERNAL server-side.
   const filters = useMemo(() => ({
     page,
     limit: 20,
+    candidateType: 'EXTERNAL',
     ...(fromDate ? { fromDate } : {}),
     ...(toDate   ? { toDate }   : {}),
   }), [page, fromDate, toDate]);
@@ -124,7 +81,7 @@ export default function InternalEnrollments() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    adminService.listInternalGrouped(filters)
+    adminService.listEnrollmentsGrouped(filters)
       .then((res) => { if (!cancelled) setData(res); })
       .catch((e) => { if (!cancelled) setError(e); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -133,38 +90,12 @@ export default function InternalEnrollments() {
 
   const rawItems = data?.items ?? [];
 
-  /**
-   * Effective payment status for an internal row.
-   *
-   *   - If the snapshot column `internalPaymentStatus` is populated, use it
-   *     verbatim (every new admin enrollment has this set).
-   *   - Otherwise, fall back to the enrollment lifecycle status: a legacy
-   *     INTERNAL row with status='paid' is treated as PAID for both the
-   *     filter and the displayed pill, so the UI is internally consistent.
-   *   - Anything else → null (renders as "—" in the cell).
-   *
-   * Returning the same value the display uses means a "Paid" filter
-   * selection matches exactly the rows that visually show "PAID".
-   */
-  const effectiveStatus = (e) => {
-    if (e.internalPaymentStatus) return e.internalPaymentStatus;
-    if (e.status === 'paid' || e.status === 'PAID') return 'PAID';
-    return null;
-  };
-
-  // Defensive client-side filter: keep only internal rows + apply
-  // payment-status filter against the same effective status the cell renders.
-  const items = useMemo(() => {
-    return rawItems.filter((e) => {
-      const isInternal =
-        e.candidateType === 'INTERNAL' ||
-        e.internalPlanId != null ||
-        e.internal_plan_id != null;
-      if (!isInternal) return false;
-      if (paymentStatus !== 'ALL' && effectiveStatus(e) !== paymentStatus) return false;
-      return true;
-    });
-  }, [rawItems, paymentStatus]);
+  // Defensive: keep only external rows (the server already filters, but never
+  // show an internal row even if the API shape changes).
+  const items = useMemo(
+    () => rawItems.filter((e) => (e.candidateType ?? 'EXTERNAL') !== 'INTERNAL' && e.internalPlanId == null),
+    [rawItems],
+  );
 
   const total      = data?.total ?? items.length;
   const totalPages = data?.totalPages ?? 1;
@@ -173,30 +104,14 @@ export default function InternalEnrollments() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Internal Enrollments"
-        subtitle="One row per student — click a row (or the email) to see all their enrollments & breakdown"
+        title="External Enrollments"
+        subtitle="Public-website enrollments only — one row per student; click a row to see all their enrollments"
         action={<span className="text-sm text-slate-500 mr-2">{total} total</span>}
       />
 
       {/* Filter bar */}
       <Card>
         <div className="flex flex-wrap items-end gap-3">
-          <div className="w-48">
-            {/* Admin path collects full payment up-front, so the only
-                outcomes are PAID and FULLY_DISCOUNTED. PARTIAL / PENDING
-                stay in the DB enum for future flexibility but aren't
-                exposed as filter options to avoid confusion. */}
-            <Select
-              label="Payment Status"
-              value={paymentStatus}
-              onChange={(e) => { setPaymentStatus(e.target.value); setPage(1); }}
-            >
-              <option value="ALL">All statuses</option>
-              <option value="PAID">Paid</option>
-              <option value="FULLY_DISCOUNTED">Fully Discounted</option>
-            </Select>
-          </div>
-
           <div className="w-44">
             <Input
               label="From Date"
@@ -206,7 +121,6 @@ export default function InternalEnrollments() {
               onChange={(e) => { setFromDate(e.target.value); setPage(1); }}
             />
           </div>
-
           <div className="w-44">
             <Input
               label="To Date"
@@ -216,7 +130,6 @@ export default function InternalEnrollments() {
               onChange={(e) => { setToDate(e.target.value); setPage(1); }}
             />
           </div>
-
           {filtersActive && (
             <Button variant="secondary" size="sm" onClick={resetFilters}>
               Reset filters
@@ -231,7 +144,6 @@ export default function InternalEnrollments() {
         </div>
       )}
 
-      {/* Simple 7-column list — click row for the drawer */}
       <Card variant="flush">
         <Table>
           <thead>
@@ -252,10 +164,10 @@ export default function InternalEnrollments() {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                   </svg>
                 }
-                title={filtersActive || page > 1 ? 'No internal enrollments match the current filters' : 'No internal enrollments yet'}
+                title={filtersActive || page > 1 ? 'No external enrollments match the current filters' : 'No external enrollments yet'}
                 description={filtersActive
-                  ? 'Try widening the date range or resetting the payment-status filter.'
-                  : 'Create one from "New Enrollment" — they will appear here.'}
+                  ? 'Try widening the date range or resetting the filters.'
+                  : 'Public-website enrollments will appear here.'}
               />
             )}
 
@@ -266,11 +178,9 @@ export default function InternalEnrollments() {
                   key={e.id}
                   striped={idx % 2 === 1}
                   className="cursor-pointer hover:bg-indigo-50/40"
-                  onClick={() => setOpenId(e.id)}
+                  onClick={() => navigate(`/admin/students/${encodeURIComponent(e.email)}`)}
                 >
-                  <Td className="font-mono text-xs text-slate-500">
-                    {e.enrollmentId ?? e.id}
-                  </Td>
+                  <Td className="font-mono text-xs text-slate-500">{e.enrollmentId ?? e.id}</Td>
                   <Td className="text-slate-900 font-medium">
                     <span className="inline-flex items-center gap-2">
                       {(e.fullName ?? `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim()) || '—'}
@@ -293,10 +203,9 @@ export default function InternalEnrollments() {
                   </Td>
                   <Td className="text-slate-600">{e.phone}</Td>
                   <Td>
-                    <Badge variant="info">Internal</Badge>
+                    <Badge variant="neutral">External</Badge>
                   </Td>
-                  {/* Active Plan — latest PAID plan's Plan ID (internal plan's
-                      externalPlanId, from /admin/internal-plans) + days left. */}
+                  {/* Active Plan — latest PAID plan's Plan ID + days left. */}
                   <Td>
                     {e.activePlan?.externalPlanId ? (
                       <div>
@@ -316,12 +225,7 @@ export default function InternalEnrollments() {
                     )}
                   </Td>
                   <Td>
-                    {/* Same `effectiveStatus()` used by the filter, so
-                        what you see is what the filter matches. Legacy
-                        rows with status='paid' but no snapshot still
-                        render as the green PAID pill and ARE picked up
-                        by the "Paid" filter. */}
-                    <PaymentStatusPill status={effectiveStatus(e)} />
+                    <Badge variant={enrollmentBadgeVariant(e.status)}>{e.status ?? 'NEW'}</Badge>
                   </Td>
                   <Td className="text-slate-500 text-xs whitespace-nowrap">
                     {createdAt ? new Date(createdAt).toLocaleString() : '—'}
@@ -356,12 +260,6 @@ export default function InternalEnrollments() {
           </button>
         </div>
       </div>
-
-      {/* Drawer — full 3-section breakdown (Plan / Financial Summary / Payment History) */}
-      <EnrollmentDetailsDrawer
-        enrollmentId={openId}
-        onClose={() => setOpenId(null)}
-      />
     </div>
   );
 }

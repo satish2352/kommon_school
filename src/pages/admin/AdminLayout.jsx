@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { useAuth } from '../../hooks/useAuth';
+import { useBranding } from '../../context/BrandingContext';
 
 /* ── Icon set ─────────────────────────────────────────────
  * Inline SVGs, line style, stroke-width 1.75, 18px box.
@@ -111,6 +112,13 @@ const Icon = {
       <path d="m10.7 12.3 6.3-6.3M16 6l2.5 2.5M14 8l2.5 2.5" />
     </svg>
   ),
+  image: (
+    <svg {...iconProps}>
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+      <circle cx="8.5" cy="8.5" r="1.5" />
+      <path d="m21 15-5-5L5 21" />
+    </svg>
+  ),
   logout: (
     <svg {...iconProps}>
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -145,6 +153,7 @@ const NAV_SECTIONS = [
       // Sits alongside the all-enrollments page so the simpler list stays
       // simple and admins can deep-dive on internal-flow pricing here.
       { to: '/admin/internal-enrollments', label: 'Internal Enrollments', icon: Icon.fileText },
+      { to: '/admin/external-enrollments', label: 'External Enrollments', icon: Icon.users },
       { to: '/admin/payments', label: 'Payments', icon: Icon.card },
       { to: '/admin/follow-ups', label: 'Follow-ups', icon: Icon.phone },
       // Email Log hidden from the admin nav (per request). Route still exists in
@@ -189,6 +198,7 @@ const SUPERADMIN_NAV_SECTIONS = [
     label: 'Settings',
     items: [
       { to: '/admin/razorpay-configs', label: 'Razorpay Keys', icon: Icon.key },
+      { to: '/admin/branding', label: 'Branding', icon: Icon.image },
     ],
   },
 ];
@@ -242,6 +252,7 @@ function NavItem({ item, onLinkClick }) {
 
 /* ── Sidebar content (shared desktop + mobile) ─────────── */
 function SidebarContent({ onLinkClick, user, onLogout }) {
+  const { brandName, logoUrl } = useBranding();
   const initial = (user?.email?.[0] ?? 'A').toUpperCase();
   const role = user?.role ?? 'Admin';
   const isSuperAdmin = String(user?.role ?? '').toLowerCase() === 'superadmin';
@@ -250,22 +261,18 @@ function SidebarContent({ onLinkClick, user, onLogout }) {
     : NAV_SECTIONS;
   return (
     <div className="flex flex-col h-full">
-      {/* Brand — clean wordmark, mint accent, matches reference */}
+      {/* Brand — dynamic logo (if uploaded) or the brand-name wordmark. */}
       <div className="px-5 h-[60px] flex items-center shrink-0">
-        <div className="flex items-baseline gap-0.5 leading-none">
+        {logoUrl ? (
+          <img src={logoUrl} alt={brandName} className="h-9 w-auto max-w-[170px] object-contain" />
+        ) : (
           <span
-            className="text-[17px] font-bold tracking-tight"
+            className="text-[17px] font-bold tracking-tight leading-none"
             style={{ color: 'var(--admin-sidebar-mint)' }}
           >
-            Kommon
+            {brandName}
           </span>
-          <span
-            className="text-[13px] font-semibold tracking-tight"
-            style={{ color: 'var(--admin-text)' }}
-          >
-            School
-          </span>
-        </div>
+        )}
       </div>
 
       {/* Divider under brand */}

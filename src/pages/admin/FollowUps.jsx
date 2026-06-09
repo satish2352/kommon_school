@@ -40,24 +40,35 @@ function followUpBadgeVariant(status) {
   return map[status] ?? 'neutral';
 }
 
-// Status pills. Each pill is { label, value } where value is the DB enum
-// value (the backend lowercases incoming query params before filtering, so
-// we send the enum's canonical lowercase form). Previous pills like
-// FOLLOW_UP / CALLBACK didn't map to any DB enum value, which is why the
-// admin Follow-Ups page surfaced "Invalid data" when those pills were
-// clicked — Prisma rejected the unknown enum value.
+// Status pills. Each pill is { label, value, openOnly? } where:
+//   - value     : DB enum value (lowercased to match backend) OR '' for
+//                 the wildcard pill (OPEN / ALL — see openOnly below).
+//   - openOnly  : when true, the backend filter sends openOnly=true so
+//                 terminal statuses are hidden; when false / undefined,
+//                 the empty value means "no status filter, show
+//                 everything including terminals".
+//
+// Default selection is OPEN — actionable leads only. The terminal pills
+// (PAYMENT COMPLETED / CONVERTED / LOST / CLOSED) sit at the tail; ALL
+// at the very end shows everything for audit/lookback.
 const STATUS_FILTERS = [
-  { value: '',                   label: 'All' },
-  { value: 'new',                label: 'NEW' },
-  { value: 'contacted',          label: 'CONTACTED' },
-  { value: 'followup_scheduled', label: 'FOLLOW-UP' },
-  { value: 'call_back_later',    label: 'CALLBACK' },
-  { value: 'interested',         label: 'INTERESTED' },
-  { value: 'payment_pending',    label: 'PAYMENT PENDING' },
-  { value: 'converted',          label: 'CONVERTED' },
-  { value: 'lost',               label: 'LOST' },
-  { value: 'closed',             label: 'CLOSED' },
+  { key: 'open',     value: '',                   label: 'OPEN',             openOnly: true  },
+  { key: 'new',      value: 'new',                label: 'NEW'                                },
+  { key: 'cont',     value: 'contacted',          label: 'CONTACTED'                          },
+  { key: 'sched',    value: 'followup_scheduled', label: 'FOLLOW-UP'                          },
+  { key: 'cb',       value: 'call_back_later',    label: 'CALLBACK'                           },
+  { key: 'int',      value: 'interested',         label: 'INTERESTED'                         },
+  { key: 'pp',       value: 'payment_pending',    label: 'PAYMENT PENDING'                    },
+  { key: 'pc',       value: 'payment_completed',  label: 'PAYMENT COMPLETED'                  },
+  { key: 'conv',     value: 'converted',          label: 'CONVERTED'                          },
+  { key: 'lost',     value: 'lost',               label: 'LOST'                               },
+  { key: 'closed',   value: 'closed',             label: 'CLOSED'                             },
+  { key: 'all',      value: '',                   label: 'ALL',              openOnly: false },
 ];
+
+// Default: OPEN. Stored as the pill's `key` so the two wildcard pills
+// (OPEN + ALL) can co-exist without colliding on an empty value.
+const DEFAULT_PILL_KEY = 'open';
 
 /* ─── Skeleton rows ──────────────────────────────────────────────────────── */
 const HEADER_COLS = [
@@ -81,7 +92,10 @@ function SkeletonRows({ count = 7 }) {
 }
 
 export default function FollowUps() {
-  const [status, setStatus]         = useState('');
+  // Pill state — track which preset pill is selected (by its key) rather
+  // than just the raw status value. This lets OPEN and ALL coexist even
+  // though both send the empty status — they differ only in openOnly.
+  const [pillKey, setPillKey]       = useState(DEFAULT_PILL_KEY);
   const [page, setPage]             = useState(1);
   // Lead-ownership filter — 'ALL' (default), 'unassigned', 'me', or employee UUID.
   const [assignedTo, setAssignedTo] = useState('ALL');
@@ -90,15 +104,24 @@ export default function FollowUps() {
   const [reloadKey, setReloadKey]   = useState(0);
   const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
 
+  // Resolve the currently-selected pill's value + openOnly. Fall back to
+  // the default if state ever drifts to an unknown key (defensive — set-
+  // ters always pass valid keys).
+  const selectedPill = useMemo(
+    () => STATUS_FILTERS.find((s) => s.key === pillKey) ?? STATUS_FILTERS[0],
+    [pillKey],
+  );
+
   const filters = useMemo(
     () => ({
       page,
       limit: 20,
-      status: status || undefined,
-      ...(assignedTo !== 'ALL' ? { assignedTo } : {}),
+      ...(selectedPill.value     ? { status:   selectedPill.value }     : {}),
+      ...(selectedPill.openOnly  ? { openOnly: true }                   : {}),
+      ...(assignedTo !== 'ALL'   ? { assignedTo }                       : {}),
       _reloadKey: reloadKey, // changing this forces useFollowUps to refetch
     }),
-    [page, status, assignedTo, reloadKey],
+    [page, selectedPill, assignedTo, reloadKey],
   );
   const { data, loading, error } = useFollowUps(filters);
 
@@ -106,7 +129,7 @@ export default function FollowUps() {
   const total = data?.total ?? data?.pagination?.total ?? items.length;
   const hasNext = items.length === 20;
 
-  const switchStatus = (s) => { setStatus(s); setPage(1); };
+  const switchPill = (key) => { setPillKey(key); setPage(1); };
 
   // Load employees for the assignee filter + per-row reassign dropdowns.
   useEffect(() => {
@@ -162,11 +185,11 @@ export default function FollowUps() {
         <div className="flex flex-wrap gap-2">
           {STATUS_FILTERS.map((s) => (
             <button
-              key={s.value || 'all'}
+              key={s.key}
               type="button"
-              onClick={() => switchStatus(s.value)}
+              onClick={() => switchPill(s.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-200 ${
-                status === s.value
+                pillKey === s.key
                   ? 'bg-emerald-600 text-white'
                   : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
               }`}

@@ -55,14 +55,6 @@ const SOURCE_MAP = {
   'Other':              'OTHER',
 };
 
-// Compat shim — remove when backend is updated to accept internalPlanId natively.
-const DURATION_TO_MONTHS = {
-  '1_MONTH':   1,
-  '3_MONTHS':  3,
-  '6_MONTHS':  6,
-  '12_MONTHS': 12,
-};
-
 /* ─── Pill selector ─────────────────────────────────────────────────────── */
 function Pill({ label, selected, onClick }) {
   return (

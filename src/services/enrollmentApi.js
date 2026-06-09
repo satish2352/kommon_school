@@ -115,6 +115,25 @@ export async function createEnrollment(data) {
 }
 
 /**
+ * Start an "upgrade" flow for an existing student by email.
+ *
+ * Backs the shareable link "<host>/upgrade/<email>". The backend creates (or
+ * resumes) a draft enrollment for the email — auto-filling name/phone from the
+ * student's most recent enrollment — and returns the minimal fields the
+ * plan-selection + payment flow needs. No contact form is shown to the student.
+ *
+ * @param {string} email
+ * @returns {Promise<{ success: boolean, data: { id: string, enrollmentId: string,
+ *            name: string|null, email: string, phone: string|null } }>}
+ */
+export async function startUpgrade(email) {
+  return apiFetch('/enrollments/upgrade', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+/**
  * Create a Razorpay payment order on the public marketing flow.
  * Amount + currency come from the backend env, so the client doesn't need to know pricing.
  *

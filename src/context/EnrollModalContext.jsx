@@ -28,7 +28,7 @@ import { savePlanSelection } from '../services/enrollPersistence'
  *
  * The `summary` shape (everything optional except planPricingId):
  *   {
- *     planPricingId, planId, planName, tier, durationMonths,
+ *     planPricingId, planId, planName, tier, durationMonths, durationUnit,
  *     basePrice, discountPercent, finalPrice, discountLabel
  *   }
  *

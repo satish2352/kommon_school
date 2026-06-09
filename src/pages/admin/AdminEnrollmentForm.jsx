@@ -251,7 +251,25 @@ function CourseGroupCard({ courseName, variants, selectedCourseId, onSelect }) {
   const hasSelection = variants.some((v) => String(v.id) === String(selectedCourseId));
   return (
     <div
-      className={`rounded-xl border-2 p-4 transition-all duration-150 ${
+      role="button"
+      tabIndex={0}
+      onClick={() => {
+        // Clicking anywhere on the card selects the course (shortest duration by
+        // default). If a duration in this card is already chosen, leave it — the
+        // user switches duration via the pills below.
+        if (hasSelection) return;
+        const id = variants[0]?.id;
+        if (id != null) onSelect(id);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (hasSelection) return;
+          const id = variants[0]?.id;
+          if (id != null) onSelect(id);
+        }
+      }}
+      className={`cursor-pointer rounded-xl border-2 p-4 transition-all duration-150 ${
         hasSelection
           ? 'border-emerald-500 bg-emerald-50/40 shadow-sm'
           : 'border-slate-200 bg-white hover:border-emerald-300 hover:shadow-sm'
@@ -281,7 +299,7 @@ function CourseGroupCard({ courseName, variants, selectedCourseId, onSelect }) {
             <button
               key={c.id}
               type="button"
-              onClick={() => onSelect(c.id)}
+              onClick={(e) => { e.stopPropagation(); onSelect(c.id); }}
               className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-semibold border transition-all duration-150 ${
                 selected
                   ? 'bg-emerald-600 border-emerald-600 text-white shadow-sm'
@@ -808,7 +826,7 @@ export default function AdminEnrollmentForm() {
             {/* Section 1: Course */}
             <Card>
               <div className="space-y-3">
-                <SectionLabel n="1" title="Course" hint="Required" status={courseStatus} />
+                <SectionLabel n="1" title="Course" hint={selectedCourseId ? undefined : 'Required'} status={courseStatus} />
                 {coursesLoading ? (
                   <div className="py-6 text-center text-xs text-slate-400">Loading courses...</div>
                 ) : courseList.length === 0 ? (
@@ -879,7 +897,7 @@ export default function AdminEnrollmentForm() {
                 <SectionLabel
                   n="2"
                   title="Internal Plan"
-                  hint={selectedCourseId ? 'Required' : 'Pick a course first'}
+                  hint={!selectedCourseId ? 'Pick a course first' : (selectedPlanId ? undefined : 'Required')}
                   status={planStatus}
                 />
                 {!selectedCourseId ? (

@@ -15,8 +15,8 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { useAdminEnrollments } from '../../hooks/useAdmin';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { adminService } from '../../services/adminService';
 import {
   PageHeader,
   Card,
@@ -76,6 +76,7 @@ function SkeletonRows({ count = 7 }) {
 }
 
 export default function InternalEnrollments() {
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [paymentStatus, setPaymentStatus] = useState('ALL');
   const [fromDate, setFromDate]           = useState('');
@@ -106,21 +107,31 @@ export default function InternalEnrollments() {
     setPage(1);
   };
 
-  // Server-side filter pinned to INTERNAL. payment-status filter is
-  // applied client-side because the list endpoint doesn't currently
-  // accept it as a query param (adding it server-side is a one-line
-  // change when needed).
+  // Grouped endpoint returns ONE row per email (latest enrollment + count),
+  // already pinned to INTERNAL server-side. Payment-status filter stays
+  // client-side (applied against the representative row's effective status).
   const filters = useMemo(() => ({
     page,
     limit: 20,
-    candidateType: 'INTERNAL',
-    source:        'INTERNAL',
     ...(fromDate ? { fromDate } : {}),
     ...(toDate   ? { toDate }   : {}),
   }), [page, fromDate, toDate]);
-  const { data, loading, error } = useAdminEnrollments(filters);
 
-  const rawItems = data?.items ?? data?.data ?? data ?? [];
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    adminService.listInternalGrouped(filters)
+      .then((res) => { if (!cancelled) setData(res); })
+      .catch((e) => { if (!cancelled) setError(e); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [filters]);
+
+  const rawItems = data?.items ?? [];
 
   /**
    * Effective payment status for an internal row.
@@ -155,14 +166,15 @@ export default function InternalEnrollments() {
     });
   }, [rawItems, paymentStatus]);
 
-  const total   = data?.total ?? data?.pagination?.total ?? items.length;
-  const hasNext = rawItems.length === 20;
+  const total      = data?.total ?? items.length;
+  const totalPages = data?.totalPages ?? 1;
+  const hasNext    = page < totalPages;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Internal Enrollments"
-        subtitle="Admin-created enrollments — click a row to see the full breakdown"
+        subtitle="One row per student — click a row (or the email) to see all their enrollments & breakdown"
         action={<span className="text-sm text-slate-500 mr-2">{total} total</span>}
       />
 
@@ -260,9 +272,25 @@ export default function InternalEnrollments() {
                     {e.enrollmentId ?? e.id}
                   </Td>
                   <Td className="text-slate-900 font-medium">
-                    {(e.fullName ?? `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim()) || '—'}
+                    <span className="inline-flex items-center gap-2">
+                      {(e.fullName ?? `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim()) || '—'}
+                      {e.enrollmentCount > 1 && (
+                        <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-semibold">
+                          {e.enrollmentCount} enrollments
+                        </span>
+                      )}
+                    </span>
                   </Td>
-                  <Td className="text-slate-600">{e.email}</Td>
+                  <Td className="text-slate-600">
+                    <button
+                      type="button"
+                      onClick={(ev) => { ev.stopPropagation(); navigate(`/admin/students/${encodeURIComponent(e.email)}`); }}
+                      className="text-left hover:text-indigo-700 hover:underline"
+                      title="View all enrollments for this email"
+                    >
+                      {e.email}
+                    </button>
+                  </Td>
                   <Td className="text-slate-600">{e.phone}</Td>
                   <Td>
                     <Badge variant="info">Internal</Badge>

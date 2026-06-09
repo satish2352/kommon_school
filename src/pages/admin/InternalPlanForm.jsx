@@ -26,9 +26,6 @@ const EMPTY_FORM = {
   description: '',
   courseId:    '',
   status:      'ACTIVE',
-  // Optional override for the `plan` field sent in the Sumago provision-
-  // user webhook. Blank → backend falls back to SUMAGO_PLAN_CODE env var.
-  sumagoPlanCode: '',
   // Required: external integration Plan ID. Sent as `planId` in the Sumago
   // provision-user webhook. Globally unique across internal plans.
   externalPlanId: '',
@@ -107,7 +104,6 @@ export default function InternalPlanForm() {
           description: plan.description ?? '',
           courseId:    plan.courseId != null ? String(plan.courseId) : '',
           status:      plan.status ?? 'ACTIVE',
-          sumagoPlanCode: plan.sumagoPlanCode ?? '',
           externalPlanId: plan.externalPlanId ?? '',
         });
       })
@@ -150,7 +146,6 @@ export default function InternalPlanForm() {
         description: form.description.trim() || null,
         courseId:    Number(form.courseId),
         status:      form.status,
-        sumagoPlanCode: form.sumagoPlanCode?.trim() || null,
         externalPlanId: form.externalPlanId.trim(),
       };
 
@@ -236,8 +231,8 @@ export default function InternalPlanForm() {
             />
 
             <Input
-              label="Plan ID"
-              required
+              id="internal-plan-id"
+              label="Plan ID* ( From Kommon School Provider)"
               value={form.externalPlanId}
               onChange={(e) => setField('externalPlanId', e.target.value)}
               onBlur={() => handleBlur('externalPlanId')}
@@ -318,18 +313,6 @@ export default function InternalPlanForm() {
             onBlur={() => handleBlur('description')}
             placeholder="Brief plan overview (optional, max 2000 chars)"
             error={formErrors.description}
-          />
-
-          {/* Optional Sumago plan-code override. When set, this plan's
-              students will appear in Sumago with THIS plan string instead
-              of the org-wide SUMAGO_PLAN_CODE env default. Leave blank to
-              keep using the env default. */}
-          <Input
-            label="Sumago Plan Code (override)"
-            value={form.sumagoPlanCode}
-            onChange={(e) => setField('sumagoPlanCode', e.target.value)}
-            placeholder="e.g. NOVA2025_GOLD — leave blank to use env default"
-            hint="Optional. Must match a plan code registered on Sumago. Blank = use SUMAGO_PLAN_CODE env."
           />
         </div>
       </Card>

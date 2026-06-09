@@ -12,10 +12,17 @@ import {
 } from '../../components/admin';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
-const DURATION_MONTHS = [1, 3, 6, 12];
+// Durations pre-seeded on a brand-new plan. Admins can edit these or add their
+// own custom durations (any positive integer, in days or months).
+const DEFAULT_DURATIONS = [1, 3, 6, 12];
+// Per-unit caps for the duration value (frontend guidance; backend caps at 3650).
+const MAX_DURATION_BY_UNIT = { MONTHS: 120, DAYS: 3650 };
+const DURATION_UNITS = ['MONTHS', 'DAYS'];
 const TIERS = ['SILVER', 'GOLD', 'PLATINUM'];
 
 const EMPTY_PRICING = {
+  durationMonths:  '',
+  durationUnit:    'MONTHS',
   basePrice:       '',
   discountPercent: '0',
   finalPrice:      '',
@@ -27,22 +34,27 @@ const EMPTY_PRICING = {
 // Mirrors backend Joi pattern. Trim before testing.
 const EXTERNAL_PLAN_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 
+// Monotonic key generator so each pricing row keeps a stable React key even as
+// rows are added/removed and their (editable) duration changes.
+let _rowKeySeq = 0;
+function makePricingRow(overrides = {}) {
+  return { _key: `pr_${_rowKeySeq++}`, ...EMPTY_PRICING, ...overrides };
+}
+
+function defaultPricingRows() {
+  return DEFAULT_DURATIONS.map((d) => makePricingRow({ durationMonths: String(d) }));
+}
+
 const EMPTY_FORM = {
   name:           '',
   tier:           '',
   tagline:        '',
   description:    '',
   highlightLabel: '',
-  promoCode:      'NEW501',
   sortOrder:      '0',
   status:         'ACTIVE',
   features:       [],
-  pricings:       {
-    1:  { ...EMPTY_PRICING },
-    3:  { ...EMPTY_PRICING },
-    6:  { ...EMPTY_PRICING },
-    12: { ...EMPTY_PRICING },
-  },
+  pricings:       [],
 };
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -54,7 +66,48 @@ function calcFinalPrice(basePrice, discountPercent) {
   return final > 0 ? final.toFixed(2) : '';
 }
 
-function validateForm(form) {
+// Per-row pricing validation. Returns a map of row._key -> { duration?, planId? }.
+// Only rows that will actually be saved (have a basePrice) are validated.
+// Computed live on every render so the admin sees duplicate-Plan-ID and
+// duplicate-duration errors as they type — not just on save.
+function computePricingIssues(rows) {
+  const issues = {};
+  const idCounts  = {}; // normalized Plan ID -> occurrences
+  const durCounts = {}; // duration (number)  -> occurrences
+
+  for (const row of rows) {
+    if (row.basePrice === '' || row.basePrice == null) continue; // skipped row
+    const id = (row.externalPlanId || '').trim();
+    if (id) idCounts[id] = (idCounts[id] || 0) + 1;
+    const dur = parseInt(String(row.durationMonths ?? '').trim(), 10);
+    if (!isNaN(dur)) durCounts[dur] = (durCounts[dur] || 0) + 1;
+  }
+
+  for (const row of rows) {
+    if (row.basePrice === '' || row.basePrice == null) continue;
+    const rowIssue = {};
+
+    const unit = (row.durationUnit || 'MONTHS').toUpperCase();
+    const maxDur = MAX_DURATION_BY_UNIT[unit] ?? 120;
+    const durRaw = String(row.durationMonths ?? '').trim();
+    const dur = parseInt(durRaw, 10);
+    if (!durRaw)                     rowIssue.duration = 'Duration is required';
+    else if (isNaN(dur) || dur < 1)  rowIssue.duration = 'Must be a positive whole number';
+    else if (dur > maxDur)           rowIssue.duration = `Must be at most ${maxDur} ${unit === 'DAYS' ? 'days' : 'months'}`;
+    else if (durCounts[dur] > 1)     rowIssue.duration = 'Duplicate duration';
+
+    const id = (row.externalPlanId || '').trim();
+    if (!id)                                     rowIssue.planId = 'Plan ID is required';
+    else if (id.length > 100)                    rowIssue.planId = 'Must be at most 100 characters';
+    else if (!EXTERNAL_PLAN_ID_PATTERN.test(id)) rowIssue.planId = 'Letters, digits, underscores, hyphens only';
+    else if (idCounts[id] > 1)                   rowIssue.planId = 'Plan ID already exists';
+
+    if (Object.keys(rowIssue).length) issues[row._key] = rowIssue;
+  }
+  return issues;
+}
+
+function validateForm(form, isEdit) {
   const e = {};
   if (!form.name.trim()) e.name = 'Name is required';
   else if (form.name.trim().length > 100) e.name = 'Name must be at most 100 characters';
@@ -62,40 +115,17 @@ function validateForm(form) {
   if (form.tagline && form.tagline.length > 200) e.tagline = 'Tagline must be at most 200 characters';
   if (form.description && form.description.length > 2000) e.description = 'Description must be at most 2000 characters';
   if (form.highlightLabel && form.highlightLabel.length > 50) e.highlightLabel = 'Highlight label must be at most 50 characters';
-  if (form.promoCode && form.promoCode.length > 50) e.promoCode = 'Promo code must be at most 50 characters';
   if (form.sortOrder !== '' && isNaN(Number(form.sortOrder))) {
     e.sortOrder = 'Sort order must be a number';
   }
 
-  // Pricing matrix row-level validation. Required Plan ID for every row that
-  // is being saved (has a basePrice). Also catches duplicates within the same
-  // plan so the user sees row-level inline errors instead of a 409 from the
-  // backend's cross-plan uniqueness check.
-  const pricingErrors = {};
-  const seenIds = new Map(); // normalized id -> durationMonths
-  for (const m of DURATION_MONTHS) {
-    const p = form.pricings[m];
-    if (p.basePrice === '' || p.basePrice == null) continue; // skipped row
-    const id = (p.externalPlanId || '').trim();
-    if (!id) {
-      pricingErrors[m] = 'Plan ID is required';
-      continue;
-    }
-    if (id.length > 100) {
-      pricingErrors[m] = 'Plan ID must be at most 100 characters';
-      continue;
-    }
-    if (!EXTERNAL_PLAN_ID_PATTERN.test(id)) {
-      pricingErrors[m] = 'Letters, digits, underscores, hyphens only';
-      continue;
-    }
-    if (seenIds.has(id)) {
-      pricingErrors[m] = `Duplicate of ${seenIds.get(id) === 1 ? '1 Month' : `${seenIds.get(id)} Months`}`;
-      continue;
-    }
-    seenIds.set(id, m);
+  const pricedRows = form.pricings.filter((r) => r.basePrice !== '' && r.basePrice != null);
+  if (!isEdit && pricedRows.length === 0) {
+    e.pricingsGeneral = 'Add at least one pricing row with a base price';
   }
-  if (Object.keys(pricingErrors).length) e.pricings = pricingErrors;
+  const pricingIssues = computePricingIssues(form.pricings);
+  if (Object.keys(pricingIssues).length) e.pricings = pricingIssues;
+
   return e;
 }
 
@@ -105,7 +135,7 @@ export default function PlanForm() {
   const { id }   = useParams();
   const isEdit   = !!id;
 
-  const [form, setForm]             = useState(EMPTY_FORM);
+  const [form, setForm]             = useState(() => ({ ...EMPTY_FORM, pricings: defaultPricingRows() }));
   const [featureInput, setFeatureInput] = useState('');
   const [formErrors, setFormErrors] = useState({});
   const [saving, setSaving]         = useState(false);
@@ -122,33 +152,25 @@ export default function PlanForm() {
       .then((plan) => {
         setPlanName(plan.name ?? '');
         setIsSystemDefault(!!plan.isSystemDefault);
-        // Reconstruct pricing map from plan.pricings array
-        const pricings = {
-          1:  { ...EMPTY_PRICING },
-          3:  { ...EMPTY_PRICING },
-          6:  { ...EMPTY_PRICING },
-          12: { ...EMPTY_PRICING },
-        };
-        for (const p of plan.pricings ?? []) {
-          if (DURATION_MONTHS.includes(p.durationMonths)) {
-            pricings[p.durationMonths] = {
-              basePrice:       String(p.basePrice ?? ''),
-              discountPercent: String(p.discountPercent ?? '0'),
-              finalPrice:      String(p.finalPrice ?? ''),
-              discountLabel:   p.discountLabel ?? '',
-              externalPlanId:  p.externalPlanId ?? '',
-              status:          p.status ?? 'ACTIVE',
-              id:              p.id,
-            };
-          }
-        }
+        // Reconstruct pricing rows from plan.pricings array (any durations).
+        const pricingRows = (plan.pricings ?? []).map((p) => makePricingRow({
+          durationMonths:  String(p.durationMonths ?? ''),
+          durationUnit:    (p.durationUnit ?? 'MONTHS').toUpperCase(),
+          basePrice:       String(p.basePrice ?? ''),
+          discountPercent: String(p.discountPercent ?? '0'),
+          finalPrice:      String(p.finalPrice ?? ''),
+          discountLabel:   p.discountLabel ?? '',
+          externalPlanId:  p.externalPlanId ?? '',
+          status:          p.status ?? 'ACTIVE',
+          id:              p.id,
+        }));
+        const pricings = pricingRows.length ? pricingRows : defaultPricingRows();
         setForm({
           name:           plan.name ?? '',
           tier:           plan.tier ?? '',
           tagline:        plan.tagline ?? '',
           description:    plan.description ?? '',
           highlightLabel: plan.highlightLabel ?? '',
-          promoCode:      plan.promoCode ?? '',
           sortOrder:      String(plan.sortOrder ?? 0),
           status:         plan.status ?? 'ACTIVE',
           features:       Array.isArray(plan.features) ? plan.features : [],
@@ -162,21 +184,26 @@ export default function PlanForm() {
   /* ── Field helpers ── */
   const setField = (key, val) => setForm((prev) => ({ ...prev, [key]: val }));
 
-  const setPricingField = (months, key, val) => {
-    setForm((prev) => {
-      const updated = {
-        ...prev.pricings,
-        [months]: { ...prev.pricings[months], [key]: val },
-      };
-      // Auto-calculate finalPrice when basePrice or discountPercent changes
-      if (key === 'basePrice' || key === 'discountPercent') {
-        const p    = updated[months];
-        const auto = calcFinalPrice(p.basePrice, p.discountPercent);
-        updated[months].finalPrice = auto;
-      }
-      return { ...prev, pricings: updated };
-    });
+  const setPricingRow = (rowKey, field, val) => {
+    setForm((prev) => ({
+      ...prev,
+      pricings: prev.pricings.map((row) => {
+        if (row._key !== rowKey) return row;
+        const updated = { ...row, [field]: val };
+        // Auto-calculate finalPrice when basePrice or discountPercent changes
+        if (field === 'basePrice' || field === 'discountPercent') {
+          updated.finalPrice = calcFinalPrice(updated.basePrice, updated.discountPercent);
+        }
+        return updated;
+      }),
+    }));
   };
+
+  const addPricingRow = () =>
+    setForm((prev) => ({ ...prev, pricings: [...prev.pricings, makePricingRow()] }));
+
+  const removePricingRow = (rowKey) =>
+    setForm((prev) => ({ ...prev, pricings: prev.pricings.filter((r) => r._key !== rowKey) }));
 
   /* ── Features helpers ── */
   const addFeature = () => {
@@ -192,26 +219,24 @@ export default function PlanForm() {
 
   /* ── Save handler ── */
   const handleSave = async () => {
-    const e = validateForm(form);
+    const e = validateForm(form, isEdit);
     if (Object.keys(e).length) { setFormErrors(e); return; }
     setFormErrors({});
     setSaving(true);
 
     try {
       // Build pricings array (only rows with a basePrice set)
-      const pricingsArray = DURATION_MONTHS
-        .filter((m) => form.pricings[m].basePrice !== '')
-        .map((m) => {
-          const p = form.pricings[m];
-          return {
-            durationMonths:  m,
-            basePrice:       parseFloat(p.basePrice),
-            discountPercent: parseFloat(p.discountPercent) || 0,
-            discountLabel:   p.discountLabel.trim() || null,
-            externalPlanId:  p.externalPlanId.trim(),
-            status:          p.status,
-          };
-        });
+      const pricingsArray = form.pricings
+        .filter((r) => r.basePrice !== '' && r.basePrice != null)
+        .map((r) => ({
+          durationMonths:  parseInt(r.durationMonths, 10),
+          durationUnit:    (r.durationUnit || 'MONTHS').toUpperCase(),
+          basePrice:       parseFloat(r.basePrice),
+          discountPercent: parseFloat(r.discountPercent) || 0,
+          discountLabel:   r.discountLabel.trim() || null,
+          externalPlanId:  r.externalPlanId.trim(),
+          status:          r.status,
+        }));
 
       // For create: include tier. For edit: omit tier (backend forbids it in PATCH).
       const planPayload = {
@@ -220,7 +245,6 @@ export default function PlanForm() {
         tagline:        form.tagline.trim()        || null,
         description:    form.description.trim()    || null,
         highlightLabel: form.highlightLabel.trim() || null,
-        promoCode:      form.promoCode.trim().toUpperCase() || null,
         sortOrder:      parseInt(form.sortOrder, 10) || 0,
         status:         form.status,
         features:       form.features,
@@ -261,6 +285,9 @@ export default function PlanForm() {
   };
 
   /* ─── Render ─────────────────────────────────────────────────────────── */
+  // Live per-row pricing issues (duplicate Plan ID / duration, missing fields).
+  const pricingIssues = computePricingIssues(form.pricings);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -333,15 +360,7 @@ export default function PlanForm() {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Input
-              label="Promo Code"
-              type="text"
-              value={form.promoCode}
-              onChange={(e) => setField('promoCode', e.target.value.toUpperCase())}
-              placeholder="e.g. NEW501"
-              error={formErrors.promoCode}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Sort Order"
               type="number"
@@ -432,7 +451,9 @@ export default function PlanForm() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50">
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3 w-24">Duration</th>
+                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3 w-48">
+                  Duration <span className="text-red-500">*</span>
+                </th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Base Price (₹)</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Discount %</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Final Price (₹)</th>
@@ -441,98 +462,148 @@ export default function PlanForm() {
                   Plan ID <span className="text-red-500">*</span>
                 </th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Status</th>
+                <th className="px-4 py-3 w-12"><span className="sr-only">Remove</span></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {DURATION_MONTHS.map((months) => {
-                const p = form.pricings[months];
+              {form.pricings.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="px-4 py-6 text-center text-sm text-slate-400">
+                    No pricing rows. Click “Add Pricing” to add one.
+                  </td>
+                </tr>
+              )}
+              {form.pricings.map((p) => {
+                const rowErr = pricingIssues[p._key] ?? {};
+                const inputBorder = (hasErr) => hasErr
+                  ? 'border-red-400 focus:ring-red-300 focus:border-red-400'
+                  : 'border-slate-300 focus:ring-brand-300 focus:border-brand-400';
                 return (
-                  <tr key={months}>
-                    <td className="px-4 py-3 font-medium text-slate-700 whitespace-nowrap">
-                      {months === 1 ? '1 Month' : `${months} Months`}
+                  <tr key={p._key}>
+                    <td className="px-4 py-3 align-top">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min="1"
+                          max={MAX_DURATION_BY_UNIT[(p.durationUnit || 'MONTHS').toUpperCase()] ?? 120}
+                          step="1"
+                          value={p.durationMonths}
+                          onChange={(e) => setPricingRow(p._key, 'durationMonths', e.target.value)}
+                          placeholder="e.g. 1"
+                          className={`w-20 px-2 py-1.5 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 transition-colors ${inputBorder(!!rowErr.duration)}`}
+                          aria-invalid={rowErr.duration ? 'true' : 'false'}
+                        />
+                        <select
+                          value={p.durationUnit || 'MONTHS'}
+                          onChange={(e) => setPricingRow(p._key, 'durationUnit', e.target.value)}
+                          className="px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
+                          aria-label="Duration unit"
+                        >
+                          {DURATION_UNITS.map((u) => (
+                            <option key={u} value={u}>{u === 'DAYS' ? 'Days' : 'Months'}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {rowErr.duration && (
+                        <p className="mt-1 text-xs text-red-500">{rowErr.duration}</p>
+                      )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-top">
                       <input
                         type="number"
                         min="0"
                         step="0.01"
                         value={p.basePrice}
-                        onChange={(e) => setPricingField(months, 'basePrice', e.target.value)}
+                        onChange={(e) => setPricingRow(p._key, 'basePrice', e.target.value)}
                         placeholder="0.00"
                         className="w-28 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-top">
                       <input
                         type="number"
                         min="0"
                         max="100"
                         step="0.1"
                         value={p.discountPercent}
-                        onChange={(e) => setPricingField(months, 'discountPercent', e.target.value)}
+                        onChange={(e) => setPricingRow(p._key, 'discountPercent', e.target.value)}
                         className="w-20 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-top">
                       <div className="w-28 px-2 py-1.5 text-sm rounded-md border border-slate-200 bg-slate-50 text-slate-700 font-medium">
                         {p.finalPrice || '—'}
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-top">
                       <input
                         type="text"
                         value={p.discountLabel}
-                        onChange={(e) => setPricingField(months, 'discountLabel', e.target.value)}
+                        onChange={(e) => setPricingRow(p._key, 'discountLabel', e.target.value)}
                         placeholder="e.g. Save 10%"
                         maxLength={100}
                         className="w-32 px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
                       />
                     </td>
-                    <td className="px-4 py-3">
-                      {(() => {
-                        const rowErr = formErrors.pricings?.[months];
-                        const borderCls = rowErr
-                          ? 'border-red-400 focus:ring-red-300 focus:border-red-400'
-                          : 'border-slate-300 focus:ring-brand-300 focus:border-brand-400';
-                        return (
-                          <>
-                            <input
-                              type="text"
-                              value={p.externalPlanId}
-                              onChange={(e) => setPricingField(months, 'externalPlanId', e.target.value)}
-                              placeholder="e.g. SUMAGOTEST_SILVER_1MONTH"
-                              maxLength={100}
-                              autoComplete="off"
-                              spellCheck={false}
-                              className={`w-56 px-2 py-1.5 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 transition-colors ${borderCls}`}
-                              aria-invalid={rowErr ? 'true' : 'false'}
-                            />
-                            {rowErr && (
-                              <p className="mt-1 text-xs text-red-500">{rowErr}</p>
-                            )}
-                          </>
-                        );
-                      })()}
+                    <td className="px-4 py-3 align-top">
+                      <input
+                        type="text"
+                        value={p.externalPlanId}
+                        onChange={(e) => setPricingRow(p._key, 'externalPlanId', e.target.value)}
+                        placeholder="e.g. SUMAGOTEST_SILVER_1MONTH"
+                        maxLength={100}
+                        autoComplete="off"
+                        spellCheck={false}
+                        className={`w-56 px-2 py-1.5 text-sm rounded-md border bg-white focus:outline-none focus:ring-2 transition-colors ${inputBorder(!!rowErr.planId)}`}
+                        aria-invalid={rowErr.planId ? 'true' : 'false'}
+                      />
+                      {rowErr.planId && (
+                        <p className="mt-1 text-xs text-red-500">{rowErr.planId}</p>
+                      )}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 align-top">
                       <select
                         value={p.status}
-                        onChange={(e) => setPricingField(months, 'status', e.target.value)}
+                        onChange={(e) => setPricingRow(p._key, 'status', e.target.value)}
                         className="px-2 py-1.5 text-sm rounded-md border border-slate-300 bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-colors"
                       >
                         <option value="ACTIVE">Active</option>
                         <option value="INACTIVE">Inactive</option>
                       </select>
                     </td>
+                    <td className="px-4 py-3 align-top">
+                      <button
+                        type="button"
+                        onClick={() => removePricingRow(p._key)}
+                        className="text-red-400 hover:text-red-600 transition-colors p-1"
+                        title="Remove pricing row"
+                        aria-label="Remove pricing row"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+
+          <div className="flex items-center justify-between gap-3 mt-3 px-4">
+            <Button variant="secondary" onClick={addPricingRow}>
+              + Add Pricing
+            </Button>
+            {formErrors.pricingsGeneral && (
+              <p className="text-xs text-red-500">{formErrors.pricingsGeneral}</p>
+            )}
+          </div>
+
           <p className="text-xs text-slate-400 mt-3 px-4">
-            {isEdit
-              ? 'Each row is upserted (created or updated) on save. Leave Base Price empty to skip that duration.'
-              : 'All four durations are required for a new plan. Leave Base Price empty to skip a duration.'}
+            Add a row per duration and choose its unit (Days or Months). Each Plan ID must be unique within
+            this plan. {isEdit
+              ? 'Each row is upserted (created or updated) on save; leave Base Price empty to skip a row.'
+              : 'Leave Base Price empty to skip a row.'}
           </p>
         </div>
       </Card>

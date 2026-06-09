@@ -87,6 +87,12 @@ export default function Navbar() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
               </svg>
             </a>
+            <Link
+              to="/login"
+              className="px-5 py-2.5 rounded-full text-sm font-semibold text-gray-700 border border-gray-200 hover:border-gray-300 hover:bg-gray-50 hover:scale-105 transition-all duration-300"
+            >
+              Login
+            </Link>
             <button
               onClick={openEnroll}
               className="btn-gradient-cta px-5 py-2.5 rounded-full text-white font-semibold text-sm shadow hover:shadow-lg hover:scale-105 hover:-translate-y-0.5 transition-all duration-300"
@@ -156,7 +162,14 @@ export default function Navbar() {
               </a>
             </div>
 
-            <div className="pt-2 pb-1">
+            <div className="pt-2 pb-1 space-y-2">
+              <Link
+                to="/login"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full text-center px-5 py-3 rounded-xl text-gray-700 font-semibold text-sm border border-gray-200 hover:bg-gray-50 transition-all duration-200"
+              >
+                Login
+              </Link>
               <button
                 onClick={() => { setMenuOpen(false); openEnroll() }}
                 className="btn-gradient-cta block w-full text-center px-5 py-3 rounded-xl text-white font-semibold text-sm shadow transition-all duration-200"

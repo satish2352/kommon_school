@@ -46,7 +46,7 @@ function highestPrice(pricings) {
 }
 
 /* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const COL_COUNT = 8;
+const COL_COUNT = 7;
 
 function SkeletonRows({ count = 5 }) {
   return (
@@ -68,6 +68,13 @@ function SkeletonRows({ count = 5 }) {
 }
 
 /* ─── Icons ──────────────────────────────────────────────────────────────── */
+const ViewIcon = (
+  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+  </svg>
+);
+
 const EditIcon = (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -76,7 +83,7 @@ const EditIcon = (
 
 const EnrollmentsIcon = (
   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5m6 0v-2a2 2 0 00-2-2H9a2 2 0 00-2 2v2m6 0H9" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
   </svg>
 );
 
@@ -220,7 +227,7 @@ export default function Plans() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Name', 'Tier', 'Pricings', 'Lowest Price', 'Highest Price', 'Promo Code', 'Status', 'Actions'].map((h) => (
+              {['Name', 'Tier', 'Pricings', 'Lowest Price', 'Highest Price', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
@@ -274,9 +281,6 @@ export default function Plans() {
                   <Td className="text-slate-700 text-sm whitespace-nowrap">
                     {formatPrice(high)}
                   </Td>
-                  <Td className="font-mono text-xs text-slate-500">
-                    {rec.promoCode ?? '—'}
-                  </Td>
                   <Td>
                     <StatusToggle
                       status={rec.status}
@@ -286,6 +290,12 @@ export default function Plans() {
                   </Td>
                   <Td>
                     <div className="flex items-center gap-1">
+                      <IconButton
+                        icon={ViewIcon}
+                        variant="default"
+                        title="View plan details"
+                        onClick={() => navigate(`/admin/plans/${rec.id}/view`)}
+                      />
                       <IconButton
                         icon={EditIcon}
                         variant="default"

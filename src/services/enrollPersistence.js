@@ -102,6 +102,7 @@ function writeBlob(blob) {
  *   planName?:       string,
  *   tier?:           string,
  *   durationMonths?: number,
+ *   durationUnit?:   string,
  *   basePrice?:      number,
  *   discountPercent?:number,
  *   finalPrice?:     number,
@@ -119,6 +120,7 @@ export function savePlanSelection(summary) {
       planName:        summary.planName ?? null,
       tier:            summary.tier ?? null,
       durationMonths:  summary.durationMonths ?? null,
+      durationUnit:    summary.durationUnit ?? 'MONTHS',
       basePrice:       summary.basePrice ?? null,
       discountPercent: summary.discountPercent ?? null,
       finalPrice:      summary.finalPrice ?? null,
@@ -217,7 +219,8 @@ export function revalidatePlanSelection(planSelection, plans) {
     const changed =
       Number.isFinite(cachedFinal) && Math.abs(liveFinal - cachedFinal) > 0.001 ||
       Number.isFinite(cachedDiscount) && Math.abs(liveDiscount - cachedDiscount) > 0.001 ||
-      pricing.durationMonths !== planSelection.durationMonths;
+      pricing.durationMonths !== planSelection.durationMonths ||
+      (pricing.durationUnit ?? 'MONTHS') !== (planSelection.durationUnit ?? 'MONTHS');
 
     return { status: changed ? 'changed' : 'valid', pricing, plan };
   }

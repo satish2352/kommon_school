@@ -1,14 +1,28 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { isAdminRole } from '../../utils/roles';
 
 const ROLE_RANK = { STUDENT: 0, TEACHER: 1, MARKETING: 2, SCHOOL_ADMIN: 3, ADMIN: 3, SUPER_ADMIN: 4 };
 
-export default function RequireAuth({ children, minRole }) {
+/**
+ * RequireAuth — route guard.
+ *
+ *   <RequireAuth>            — any authenticated user (e.g. the personal panel).
+ *   <RequireAuth adminOnly>  — admin/staff only. Authenticated non-admins
+ *                              (chiefly students) are bounced to /panel rather
+ *                              than shown an access-denied wall, so they always
+ *                              land somewhere they belong.
+ */
+export default function RequireAuth({ children, minRole, adminOnly = false }) {
   const { user, isAuthenticated } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (adminOnly && !isAdminRole(user.role)) {
+    return <Navigate to="/panel" replace />;
   }
 
   if (minRole && ROLE_RANK[user.role] < (ROLE_RANK[minRole] ?? 99)) {

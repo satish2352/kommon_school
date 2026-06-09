@@ -9,14 +9,8 @@
  *   onCompare       — () => void  — called when user clicks "Compare features"
  */
 
-import { useState } from 'react';
-
-const DURATION_TABS = [
-  { months: 1,  label: '1 Month' },
-  { months: 3,  label: '3 Months' },
-  { months: 6,  label: '6 Months' },
-  { months: 12, label: '12 Months' },
-];
+import { useState, useMemo } from 'react';
+import { getDurationTabs, pricingKey, defaultDurationKey } from '../../utils/planDurations';
 
 const TIER_STYLES = {
   SILVER: {
@@ -124,16 +118,43 @@ function PlanFeatures({ features }) {
 // Callers may still override via the `defaultDuration` prop (e.g. when a
 // preselected plan from the Pricing Page has a specific duration).
 export default function PlanSelector({ plans = [], value, onChange, defaultDuration = 1, onCompare }) {
-  const [duration, setDuration] = useState(defaultDuration);
+  // User's picked duration ("value-unit" key); null until they tap a tab.
+  const [duration, setDuration] = useState(null);
+
+  // Duration tabs derived from the admin-configured pricing rows passed in,
+  // so the strip reflects whatever durations staff published (any value,
+  // Days or Months) rather than a hardcoded list.
+  const durationTabs = useMemo(() => getDurationTabs(plans), [plans]);
+
+  // Effective selection, derived during render: the user's pick when still
+  // valid, otherwise the caller's defaultDuration (in MONTHS) or the
+  // shortest available tab.
+  const activeDuration = durationTabs.some((t) => t.key === duration)
+    ? duration
+    : defaultDurationKey(durationTabs, defaultDuration);
 
   // Find pricing for a given plan + selected duration
   function getPricing(plan) {
     return (plan.pricings ?? []).find(
-      (p) => p.durationMonths === duration && p.status === 'ACTIVE',
+      (p) => pricingKey(p) === activeDuration && p.status === 'ACTIVE',
     ) ?? null;
   }
 
   const orderedPlans = [...(plans ?? [])].sort((a, b) => a.sortOrder - b.sortOrder);
+
+  // Only the plans with an ACTIVE pricing at this duration — no greyed-out
+  // "Not available" cards.
+  const visiblePlans = orderedPlans
+    .map((plan) => ({ plan, pricing: getPricing(plan) }))
+    .filter((x) => x.pricing);
+
+  // Centre one or two plans; otherwise use the 3-up grid.
+  const gridLayoutClass =
+    visiblePlans.length === 1
+      ? 'grid-cols-1 max-w-xs mx-auto'
+      : visiblePlans.length === 2
+      ? 'grid-cols-1 sm:grid-cols-2 max-w-lg mx-auto'
+      : 'grid-cols-1 md:grid-cols-3';
 
   return (
     <div className="space-y-4">
@@ -151,15 +172,15 @@ export default function PlanSelector({ plans = [], value, onChange, defaultDurat
         aria-label="Choose plan duration"
         className="flex gap-1 bg-slate-100 rounded-xl p-1.5 shadow-inner"
       >
-        {DURATION_TABS.map((tab) => {
-          const isActive = duration === tab.months;
+        {durationTabs.map((tab) => {
+          const isActive = activeDuration === tab.key;
           return (
             <button
-              key={tab.months}
+              key={tab.key}
               type="button"
               role="tab"
               aria-selected={isActive}
-              onClick={() => setDuration(tab.months)}
+              onClick={() => setDuration(tab.key)}
               className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all duration-200 ${
                 isActive
                   ? 'bg-white text-indigo-700 shadow-md scale-[1.02] ring-1 ring-indigo-100'
@@ -175,9 +196,8 @@ export default function PlanSelector({ plans = [], value, onChange, defaultDurat
       {/* ── Plan cards — key={duration} forces a remount on tab change so
             the existing `animate-fade-in` keyframe smoothly transitions
             the new prices in without an animation library. ── */}
-      <div key={duration} className="grid grid-cols-1 md:grid-cols-3 gap-3 animate-fade-in">
-        {orderedPlans.map((plan) => {
-          const pricing = getPricing(plan);
+      <div key={activeDuration} className={`grid ${gridLayoutClass} gap-3 animate-fade-in`}>
+        {visiblePlans.map(({ plan, pricing }) => {
           const style   = TIER_STYLES[plan.tier] ?? TIER_STYLES.SILVER;
           const isSelected = pricing && value === pricing.id;
 
@@ -193,6 +213,7 @@ export default function PlanSelector({ plans = [], value, onChange, defaultDurat
                   planName:        plan.name,
                   tier:            plan.tier,
                   durationMonths:  pricing.durationMonths,
+                  durationUnit:    pricing.durationUnit ?? 'MONTHS',
                   basePrice:       Number(pricing.basePrice),
                   discountPercent: Number(pricing.discountPercent),
                   finalPrice:      Number(pricing.finalPrice),

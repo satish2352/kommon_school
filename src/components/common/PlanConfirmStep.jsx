@@ -32,6 +32,7 @@
  */
 
 import PlanSummaryCard from './PlanSummaryCard'
+import { formatDuration } from '../../utils/formatDuration'
 
 const inr = (amount) =>
   `₹${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
@@ -93,9 +94,7 @@ export default function PlanConfirmStep({ summary, status, onChange }) {
           <div className="flex justify-between">
             <dt className="text-slate-500">Duration</dt>
             <dd className="font-semibold text-slate-900">
-              {summary.durationMonths === 1
-                ? '1 Month'
-                : `${summary.durationMonths} Months`}
+              {formatDuration(summary.durationMonths, summary.durationUnit)}
             </dd>
           </div>
           {summary.basePrice != null && (

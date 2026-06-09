@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { isAdminRole, homePathForRole } from '../utils/roles';
 
 export default function Login() {
   const { login, loading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const redirectTo = location.state?.from?.pathname ?? '/admin';
+  const fromPath = location.state?.from?.pathname ?? null;
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -17,8 +18,15 @@ export default function Login() {
     e.preventDefault();
     setError(null);
     try {
-      await login({ email, password, tenantId: tenantId || undefined });
-      navigate(redirectTo, { replace: true });
+      const user = await login({ email, password, tenantId: tenantId || undefined });
+      // Admin/staff → /admin console; everyone else (provisioned students) →
+      // their personal /panel. Honour a saved "from" location only when it
+      // belongs to the user's own area, so a student bounced off /admin doesn't
+      // get sent straight back to a page they can't use.
+      const home = homePathForRole(user?.role);
+      const area = isAdminRole(user?.role) ? '/admin' : '/panel';
+      const dest = fromPath && fromPath.startsWith(area) ? fromPath : home;
+      navigate(dest, { replace: true });
     } catch (err) {
       setError(err.message || 'Login failed');
     }

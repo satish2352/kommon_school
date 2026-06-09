@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { useEnrollModal } from '../../context/EnrollModalContext'
 import { listPublic } from '../../services/plansService'
+import { getDurationTabs, pricingKey, defaultDurationKey } from '../../utils/planDurations'
 
 /**
  * PricingTable
@@ -19,16 +20,10 @@ import { listPublic } from '../../services/plansService'
  * change what they get charged.
  */
 
-const DURATION_TABS = [
-  { months: 1,  label: '1 Month'   },
-  { months: 3,  label: '3 Months'  },
-  { months: 6,  label: '6 Months'  },
-  { months: 12, label: '12 Months' },
-]
-
 // Default to the 1-month plan so first-time visitors see the entry-level
 // price first, then can scale up via the tab strip. This reduces "sticker
-// shock" on the longer-duration upfront-discount slabs.
+// shock" on the longer-duration upfront-discount slabs. If no 1-month
+// pricing exists, the first available (shortest) duration is selected.
 const DEFAULT_DURATION_MONTHS = 1
 
 // Tailwind breakpoint at which we start auto-scrolling the grid into view
@@ -241,12 +236,26 @@ export default function PricingTable() {
   const [loading, setLoading]   = useState(true)
   const [error, setError]       = useState(null)
   const [retryKey, setRetryKey] = useState(0)
-  const [duration, setDuration] = useState(DEFAULT_DURATION_MONTHS)
+  // Selected duration as a "value-unit" key (e.g. "3-MONTHS"); null until
+  // plans load and the default is resolved from the available tabs.
+  const [duration, setDuration] = useState(null)
   // Ref to the cards grid so we can scroll it into view on mobile after a
   // tab change. Skipping the very first render avoids hijacking the user's
   // initial scroll position when they first land on the page.
   const gridRef = useRef(null)
   const firstRenderRef = useRef(true)
+
+  // Duration tabs derived from the admin-configured pricing rows, so the
+  // strip reflects whatever durations (any value, Days or Months) staff have
+  // published — not a hardcoded list.
+  const durationTabs = useMemo(() => getDurationTabs(plans), [plans])
+
+  // Effective selection, derived during render: the user's pick when it's
+  // still a valid tab, otherwise the default (1 month / shortest available).
+  // No effect needed, and we never stay pointed at a removed duration.
+  const activeDuration = durationTabs.some((t) => t.key === duration)
+    ? duration
+    : defaultDurationKey(durationTabs, DEFAULT_DURATION_MONTHS)
 
   // Auto-scroll the cards grid into view on small viewports when the
   // selected duration changes. Desktop always shows both tabs + cards in
@@ -265,7 +274,7 @@ export default function PricingTable() {
     requestAnimationFrame(() => {
       gridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
-  }, [duration])
+  }, [activeDuration])
 
   useEffect(() => {
     let cancelled = false
@@ -293,18 +302,30 @@ export default function PricingTable() {
     return [...plans].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
   }, [plans])
 
-  // Compute, for the currently-selected duration, which durations exist
-  // anywhere in the dataset. Used to hide tabs that no plan supports so
-  // we never show an empty "Not available" grid by default.
-  const availableDurations = useMemo(() => {
-    const set = new Set()
-    for (const p of plans) {
-      for (const pr of p.pricings ?? []) {
-        if (pr.status === 'ACTIVE') set.add(pr.durationMonths)
-      }
-    }
-    return set
-  }, [plans])
+  // Only the plans that actually have an ACTIVE pricing at the selected
+  // duration — so we never render greyed-out "Not available" cards.
+  const visiblePlans = useMemo(
+    () =>
+      orderedPlans
+        .map((plan) => ({
+          plan,
+          pricing:
+            (plan.pricings ?? []).find(
+              (p) => pricingKey(p) === activeDuration && p.status === 'ACTIVE',
+            ) ?? null,
+        }))
+        .filter((x) => x.pricing),
+    [orderedPlans, activeDuration],
+  )
+
+  // Centre the group when only one or two plans are offered at this duration;
+  // fall back to the full responsive 3-up grid otherwise.
+  const gridLayoutClass =
+    visiblePlans.length === 1
+      ? 'grid-cols-1 max-w-sm mx-auto'
+      : visiblePlans.length === 2
+      ? 'grid-cols-1 sm:grid-cols-2 max-w-3xl mx-auto'
+      : 'sm:grid-cols-2 lg:grid-cols-3'
 
   // Hand the chosen plan to the EnrollModal. The summary contains
   // display-only pricing (the backend re-resolves it from DB on
@@ -316,6 +337,7 @@ export default function PricingTable() {
       planName:        plan.name,
       tier:            plan.tier,
       durationMonths:  pricing.durationMonths,
+      durationUnit:    pricing.durationUnit ?? 'MONTHS',
       basePrice:       Number(pricing.basePrice),
       discountPercent: Number(pricing.discountPercent),
       finalPrice:      Number(pricing.finalPrice),
@@ -383,24 +405,20 @@ export default function PricingTable() {
               aria-label="Choose plan duration"
               className="flex gap-1 bg-slate-100 rounded-2xl p-1.5 shadow-inner"
             >
-              {DURATION_TABS.map((tab) => {
-                const exists = availableDurations.has(tab.months)
-                const isActive = duration === tab.months
+              {durationTabs.map((tab) => {
+                const isActive = activeDuration === tab.key
                 return (
                   <button
-                    key={tab.months}
+                    key={tab.key}
                     type="button"
                     role="tab"
                     aria-selected={isActive}
                     aria-controls="plans-grid"
-                    disabled={!exists}
-                    onClick={() => setDuration(tab.months)}
+                    onClick={() => setDuration(tab.key)}
                     className={`flex-1 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200
                                 ${isActive
                                   ? 'bg-white text-indigo-700 shadow-md scale-[1.02] ring-1 ring-indigo-100'
-                                  : exists
-                                  ? 'text-slate-500 hover:text-slate-900 hover:bg-white/60'
-                                  : 'text-slate-300 cursor-not-allowed opacity-60'}`}
+                                  : 'text-slate-500 hover:text-slate-900 hover:bg-white/60'}`}
                   >
                     {tab.label}
                   </button>
@@ -422,22 +440,17 @@ export default function PricingTable() {
             className="scroll-mt-24 sm:scroll-mt-0"
           >
             <div
-              key={duration}
-              className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5 items-stretch animate-fade-in"
+              key={activeDuration}
+              className={`grid ${gridLayoutClass} gap-5 items-stretch animate-fade-in`}
             >
-              {orderedPlans.map((plan) => {
-                const pricing = (plan.pricings ?? []).find(
-                  (p) => p.durationMonths === duration && p.status === 'ACTIVE',
-                ) ?? null
-                return (
-                  <PlanCard
-                    key={plan.id}
-                    plan={plan}
-                    pricing={pricing}
-                    onGetStarted={handleGetStarted}
-                  />
-                )
-              })}
+              {visiblePlans.map(({ plan, pricing }) => (
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  pricing={pricing}
+                  onGetStarted={handleGetStarted}
+                />
+              ))}
             </div>
           </div>
         </>

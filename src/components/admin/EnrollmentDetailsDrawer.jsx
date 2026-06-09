@@ -21,6 +21,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { adminService } from '../../services/adminService';
 
 // ---------------------------------------------------------------------------
@@ -117,6 +118,8 @@ export default function EnrollmentDetailsDrawer({ enrollmentId, onClose }) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState(null);
+  const [history, setHistory] = useState([]);
+  const navigate = useNavigate();
 
   // Fetch when opened (or when id changes while already open). Reset on
   // close so the next open doesn't briefly show stale data.
@@ -135,6 +138,18 @@ export default function EnrollmentDetailsDrawer({ enrollmentId, onClose }) {
       .catch((err) => { if (!cancelled) { setError(err); setLoading(false); } });
     return () => { cancelled = true; };
   }, [enrollmentId]);
+
+  // Fetch all enrollments sharing this email (grouped history) once the
+  // primary record loads. Powers the "Enrollment History" section below.
+  useEffect(() => {
+    const email = data?.email;
+    if (!email) { setHistory([]); return undefined; }
+    let cancelled = false;
+    adminService.getEnrollmentsByEmail(email)
+      .then((res) => { if (!cancelled) setHistory(res?.items ?? []); })
+      .catch(() => { if (!cancelled) setHistory([]); });
+    return () => { cancelled = true; };
+  }, [data?.email]);
 
   // ESC closes. (The public enrollment modal explicitly suppresses ESC
   // for payment safety; this is a read-only admin surface, ESC is fine.)
@@ -209,6 +224,46 @@ export default function EnrollmentDetailsDrawer({ enrollmentId, onClose }) {
                   <div><span className="text-xs text-slate-400">Type</span><div className="text-slate-800">{data.candidateType}</div></div>
                 </div>
               </div>
+
+              {/* Enrollment history (all rows sharing this email). Only shown
+                  when there is more than one — i.e. the student re-enrolled. */}
+              {history.length > 1 && (
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                      Enrollment History · {history.length}
+                    </h3>
+                    <button
+                      onClick={() => navigate(`/admin/students/${encodeURIComponent(data.email)}`)}
+                      className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                    >
+                      View full history →
+                    </button>
+                  </div>
+                  <ul className="space-y-2">
+                    {history.map((h) => (
+                      <li
+                        key={h.id}
+                        className={`flex items-center justify-between gap-3 rounded-lg border px-3 py-2 text-sm ${
+                          h.id === data.id ? 'border-indigo-300 bg-indigo-50/40' : 'border-slate-200'
+                        }`}
+                      >
+                        <div className="min-w-0">
+                          <div className="font-mono text-[11px] text-slate-500">
+                            {h.enrollmentId}{h.id === data.id ? ' · current' : ''}
+                          </div>
+                          <div className="text-slate-700 truncate">{h.planLabel || '—'}</div>
+                          <div className="text-[10px] text-slate-400">{fmtDateTime(h.createdAt)}</div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <div className="text-slate-900 tabular-nums">{paiseToInr(h.amountPaise)}</div>
+                          <div className="text-[10px] uppercase font-bold tracking-wide text-slate-400">{h.status}</div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {data.candidateType !== 'INTERNAL' && (
                 <div className="rounded-xl border border-slate-200 bg-slate-100 p-4 text-xs text-slate-500">

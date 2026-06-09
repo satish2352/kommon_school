@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { useAdminEnrollments } from '../../hooks/useAdmin';
 import { adminService } from '../../services/adminService';
 import {
   PageHeader,
@@ -192,7 +191,7 @@ function DiagRow({ k, v, mono, truncate }) {
 }
 
 /* ─── Skeleton rows ────────────────────────────────────────────────────── */
-const COLS = 10; // Sr. No. + Enrollment ID + Name + Email + Phone + Type + Status + Sync + Created + actions
+const COLS = 11; // Sr. No. + Enrollment ID + Name + Email + Phone + Type + Active Plan + Status + Sync + Created + actions
 function SkeletonRows({ count = 8 }) {
   return (
     <>
@@ -255,6 +254,7 @@ function writeQueryState(state) {
 /* ─── Main page ────────────────────────────────────────────────────────── */
 export default function Enrollments() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // Initial state lives in the URL — bookmarks + page reloads preserve view.
   const initialState = useMemo(() => readQueryState(searchParams), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -315,7 +315,24 @@ export default function Enrollments() {
     ...(toDate                            ? { toDate }   : {}),
   }), [page, limit, debouncedSearch, candidateType, status, syncStatus, fromDate, toDate]);
 
-  const { data, loading, error, refetch } = useAdminEnrollments(filters);
+  // One row PER EMAIL (latest enrollment + enrollmentCount). Deduped globally
+  // on the server, so a re-enrolling student appears once; the count badge and
+  // the per-row history link reveal the rest.
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError]     = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    adminService.listEnrollmentsGrouped(filters)
+      .then((res) => { if (!cancelled) setData(res); })
+      .catch((e) => { if (!cancelled) setError(e); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [filters, reloadKey]);
 
   /* ── Read server response ───────────────────────────────────────────── */
   const items      = Array.isArray(data?.items) ? data.items : [];
@@ -380,7 +397,7 @@ export default function Enrollments() {
     <div className="space-y-6">
       <PageHeader
         title="Enrollments"
-        subtitle="Manage and review student enrollments"
+        subtitle="One row per student — click the email or History to see all their enrollments"
         action={
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => refetch()}>
@@ -521,6 +538,7 @@ export default function Enrollments() {
                   { key: 'email',  label: 'Email' },
                   { key: 'phone',  label: 'Phone' },
                   { key: 'type',   label: 'Type' },
+                  { key: 'plan',   label: 'Active Plan' },
                   { key: 'status', label: 'Status' },
                   { key: 'sync',   label: 'Sync' },
                   { key: 'created',label: 'Created' },
@@ -571,12 +589,48 @@ export default function Enrollments() {
                   <Td className="text-slate-900 font-medium">
                     {e.fullName ?? `${e.firstName ?? ''} ${e.lastName ?? ''}`.trim()}
                   </Td>
-                  <Td className="text-slate-600">{e.email}</Td>
+                  <Td className="text-slate-600">
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/admin/students/${encodeURIComponent(e.email)}`)}
+                        className="text-left hover:text-indigo-700 hover:underline truncate"
+                        title="View all enrollments for this email"
+                      >
+                        {e.email}
+                      </button>
+                      {e.enrollmentCount > 1 && (
+                        <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-semibold">
+                          {e.enrollmentCount} enrollments
+                        </span>
+                      )}
+                    </div>
+                  </Td>
                   <Td className="text-slate-600">{e.phone}</Td>
                   <Td>
                     <Badge variant={ctype === 'INTERNAL' ? 'info' : 'neutral'}>
                       {ctype === 'INTERNAL' ? 'Internal' : 'External'}
                     </Badge>
+                  </Td>
+                  {/* Active Plan — latest PAID plan's Plan ID + days left.
+                      Shown for EXTERNAL students (per requirement); '—' otherwise. */}
+                  <Td>
+                    {ctype === 'EXTERNAL' && e.activePlan?.externalPlanId ? (
+                      <div>
+                        <span className="font-mono text-[11px] text-slate-700">{e.activePlan.externalPlanId}</span>
+                        {e.activePlan.daysLeft != null && (
+                          <div className={`text-[11px] font-semibold ${
+                            e.activePlan.daysLeft <= 0 ? 'text-red-600'
+                            : e.activePlan.daysLeft <= 7 ? 'text-amber-600'
+                            : 'text-emerald-600'
+                          }`}>
+                            {e.activePlan.daysLeft > 0 ? `${e.activePlan.daysLeft} day${e.activePlan.daysLeft === 1 ? '' : 's'} left` : 'Expired'}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-slate-300 text-xs">—</span>
+                    )}
                   </Td>
                   <Td>
                     <Badge variant={enrollmentBadgeVariant(e.status)}>
@@ -599,20 +653,30 @@ export default function Enrollments() {
                     {createdAt ? new Date(createdAt).toLocaleString() : '—'}
                   </Td>
                   <Td>
-                    {canRetry && (
+                    <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        disabled={isRetrying}
-                        onClick={() => handleRetrySync(
-                          e.id,
-                          e.fullName ?? e.email ?? e.enrollmentId,
-                        )}
-                        className="px-2.5 py-1 text-xs font-semibold rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        title="Re-queue the external-API sync for this enrollment"
+                        onClick={() => navigate(`/admin/students/${encodeURIComponent(e.email)}`)}
+                        className="px-2.5 py-1 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-indigo-700 transition-colors"
+                        title="View this student's full enrollment history"
                       >
-                        {isRetrying ? 'Queuing…' : 'Retry sync'}
+                        History
                       </button>
-                    )}
+                      {canRetry && (
+                        <button
+                          type="button"
+                          disabled={isRetrying}
+                          onClick={() => handleRetrySync(
+                            e.id,
+                            e.fullName ?? e.email ?? e.enrollmentId,
+                          )}
+                          className="px-2.5 py-1 text-xs font-semibold rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          title="Re-queue the external-API sync for this enrollment"
+                        >
+                          {isRetrying ? 'Queuing…' : 'Retry sync'}
+                        </button>
+                      )}
+                    </div>
                   </Td>
                 </Tr>
               );

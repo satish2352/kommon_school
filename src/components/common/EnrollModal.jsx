@@ -221,6 +221,7 @@ export default function EnrollModal() {
                 planName:        result.plan.name,
                 tier:            result.plan.tier,
                 durationMonths:  result.pricing.durationMonths,
+                durationUnit:    result.pricing.durationUnit ?? 'MONTHS',
                 basePrice:       Number(result.pricing.basePrice),
                 discountPercent: Number(result.pricing.discountPercent),
                 finalPrice:      Number(result.pricing.finalPrice),
@@ -383,7 +384,15 @@ export default function EnrollModal() {
         // Advance to step 2 — plan confirm or chooser
         setStep(2)
       } catch (err) {
-        if (err.code === 'STUDENT_ALREADY_REGISTERED') {
+        if (err.code === 'ENROLLMENT_ALREADY_EXISTS') {
+          // Returning external student who already has a settled enrollment —
+          // they have a student panel, so route them to log in and buy there.
+          setErrors({
+            _api: err.message ||
+                  'This enrollment already exists. Please log in to your student panel to purchase a plan.',
+            _login: true,
+          })
+        } else if (err.code === 'STUDENT_ALREADY_REGISTERED') {
           setErrors({
             _api: 'A student is already registered with this email. ' +
                   'If this is you, please contact support — we\'ll help you access your account.',
@@ -850,6 +859,14 @@ export default function EnrollModal() {
             {errors._api && (
               <div className="px-3 py-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs mb-3">
                 {errors._api}
+                {errors._login && (
+                  <a
+                    href="/login"
+                    className="inline-block mt-1.5 font-semibold underline text-red-800 hover:text-red-900"
+                  >
+                    Log in to your student panel →
+                  </a>
+                )}
               </div>
             )}
             <div className="flex items-center justify-between gap-3">

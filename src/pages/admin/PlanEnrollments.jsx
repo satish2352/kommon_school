@@ -13,6 +13,7 @@ import {
   Skeleton,
   EmptyState,
 } from '../../components/admin';
+import { formatDuration } from '../../utils/formatDuration';
 
 /* ─── Status badge ───────────────────────────────────────────────────────── */
 const STATUS_STYLES = {
@@ -28,7 +29,7 @@ const STATUS_STYLES = {
 function StatusBadge({ status }) {
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_STYLES[status] ?? 'bg-slate-100 text-slate-600'}`}>
-      {status.replace(/_/g, ' ')}
+      {status ? String(status).replace(/_/g, ' ') : '—'}
     </span>
   );
 }
@@ -140,22 +141,35 @@ export default function PlanEnrollments() {
 
             {!loading && !error && records.map((rec, idx) => {
               const pricing = rec.plan_pricing;
-              const durationMonths = pricing?.durationMonths ?? null;
+              const durationLabel = pricing?.durationMonths != null
+                ? formatDuration(pricing.durationMonths, pricing.durationUnit)
+                : '—';
               const finalPrice = pricing?.finalPrice != null
                 ? `₹${Number(pricing.finalPrice).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`
                 : '—';
               return (
                 <Tr key={rec.id} striped={idx % 2 === 1}>
                   <Td className="font-mono text-xs text-slate-700">
-                    {rec.enrollment_code ?? rec.id.slice(0, 8) + '…'}
+                    {rec.enrollment_code ?? String(rec.id).slice(0, 8) + '…'}
                   </Td>
                   <Td className="text-slate-900 font-medium">
                     {rec.name || [rec.first_name, rec.last_name].filter(Boolean).join(' ') || '—'}
                   </Td>
-                  <Td className="text-slate-600 text-sm">{rec.email}</Td>
+                  <Td className="text-slate-600 text-sm">
+                    {rec.email ? (
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/admin/students/${encodeURIComponent(rec.email)}`)}
+                        className="text-left hover:text-indigo-700 hover:underline"
+                        title="View all enrollments for this email"
+                      >
+                        {rec.email}
+                      </button>
+                    ) : '—'}
+                  </Td>
                   <Td className="text-slate-500 text-sm">{rec.phone_number ?? '—'}</Td>
                   <Td className="text-slate-600 text-sm whitespace-nowrap">
-                    {durationMonths != null ? `${durationMonths} mo` : '—'}
+                    {durationLabel}
                   </Td>
                   <Td className="text-slate-700 text-sm whitespace-nowrap">{finalPrice}</Td>
                   <Td><StatusBadge status={rec.status} /></Td>

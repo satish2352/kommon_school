@@ -69,6 +69,12 @@ const Icon = {
       <path d="m12 7 3.13 5.73C15.66 13.7 16.9 14 18 14a4 4 0 1 1-4 4" />
     </svg>
   ),
+  mail: (
+    <svg {...iconProps}>
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  ),
   layers: (
     <svg {...iconProps}>
       <path d="M12 2 2 7l10 5 10-5-10-5z" />
@@ -97,6 +103,12 @@ const Icon = {
     <svg {...iconProps}>
       <circle cx="12" cy="12" r="10" />
       <path d="M12 6v6l4 2" />
+    </svg>
+  ),
+  key: (
+    <svg {...iconProps}>
+      <circle cx="7.5" cy="15.5" r="4.5" />
+      <path d="m10.7 12.3 6.3-6.3M16 6l2.5 2.5M14 8l2.5 2.5" />
     </svg>
   ),
   logout: (
@@ -135,6 +147,9 @@ const NAV_SECTIONS = [
       { to: '/admin/internal-enrollments', label: 'Internal Enrollments', icon: Icon.fileText },
       { to: '/admin/payments', label: 'Payments', icon: Icon.card },
       { to: '/admin/follow-ups', label: 'Follow-ups', icon: Icon.phone },
+      // Email Log hidden from the admin nav (per request). Route still exists in
+      // AppRoutes; uncomment to restore the menu item.
+      // { to: '/admin/email-logs', label: 'Email Log', icon: Icon.mail },
     ],
   },
   {
@@ -150,10 +165,10 @@ const NAV_SECTIONS = [
       {
         label: 'Internal',
         items: [
-          { to: '/admin/internal-plans', end: true, label: 'Internal Plans', icon: Icon.fileText },
-          { to: '/admin/courses', label: 'Courses', icon: Icon.book },
           { to: '/admin/course-names', label: 'Course Names', icon: Icon.book },
           { to: '/admin/duration-master', label: 'Duration Master', icon: Icon.clock },
+          { to: '/admin/courses', label: 'Courses', icon: Icon.book },
+          { to: '/admin/internal-plans', end: true, label: 'Internal Plans', icon: Icon.fileText },
           { to: '/admin/enrollments/new', label: 'New Enrollment', icon: Icon.userPlus },
           { to: '/admin/enrollments/bulk', label: 'Bulk Upload (CSV)', icon: Icon.upload },
         ],
@@ -164,6 +179,16 @@ const NAV_SECTIONS = [
           { to: '/admin/plans', label: 'Plans', icon: Icon.layers },
         ],
       },
+    ],
+  },
+];
+
+/* Superadmin-only sections, appended after the base nav. */
+const SUPERADMIN_NAV_SECTIONS = [
+  {
+    label: 'Settings',
+    items: [
+      { to: '/admin/razorpay-configs', label: 'Razorpay Keys', icon: Icon.key },
     ],
   },
 ];
@@ -219,6 +244,10 @@ function NavItem({ item, onLinkClick }) {
 function SidebarContent({ onLinkClick, user, onLogout }) {
   const initial = (user?.email?.[0] ?? 'A').toUpperCase();
   const role = user?.role ?? 'Admin';
+  const isSuperAdmin = String(user?.role ?? '').toLowerCase() === 'superadmin';
+  const navSections = isSuperAdmin
+    ? [...NAV_SECTIONS, ...SUPERADMIN_NAV_SECTIONS]
+    : NAV_SECTIONS;
   return (
     <div className="flex flex-col h-full">
       {/* Brand — clean wordmark, mint accent, matches reference */}
@@ -244,7 +273,7 @@ function SidebarContent({ onLinkClick, user, onLogout }) {
 
       {/* Nav */}
       <nav className="flex-1 px-2 py-3 overflow-y-auto">
-        {NAV_SECTIONS.map((section, idx) => (
+        {navSections.map((section, idx) => (
           <div key={section.label ?? `section-${idx}`}>
             {section.label && <GroupLabel>{section.label}</GroupLabel>}
 
@@ -413,22 +442,8 @@ export default function AdminLayout() {
             </span>
           </div>
 
-          {/* Right: search + bell + user */}
+          {/* Right: bell + user */}
           <div className="flex items-center gap-2.5">
-            {/* Search (static) */}
-            <div className="relative hidden lg:block">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search..."
-                className="pl-9 pr-4 py-1.5 rounded-md border text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-400 transition-all duration-200 w-56"
-                style={{ background: '#F8F9FA', borderColor: 'var(--admin-border)' }}
-                readOnly
-              />
-            </div>
-
             {/* Bell */}
             <button
               type="button"

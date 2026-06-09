@@ -33,12 +33,13 @@ export function Th({ children, align = 'left', className = '' }) {
   );
 }
 
-export function Td({ children, align = 'left', className = '' }) {
+export function Td({ children, align = 'left', className = '', ...rest }) {
   const alignCls = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left';
   return (
     <td
       className={`px-4 py-3 text-[13px] text-slate-700 whitespace-nowrap ${alignCls} ${className}`}
       style={{ borderBottom: '1px solid var(--admin-border-soft, #EEF1F4)' }}
+      {...rest}
     >
       {children}
     </td>

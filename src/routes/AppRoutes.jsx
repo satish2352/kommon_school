@@ -8,6 +8,7 @@ import Pricing from '../pages/Pricing'
 import Contact from '../pages/Contact'
 import Institution from '../pages/Institution'
 import Login from '../pages/Login'
+import UpgradePlan from '../pages/UpgradePlan'
 import AdminLayout from '../pages/admin/AdminLayout'
 import Dashboard from '../pages/admin/Dashboard'
 import Enrollments from '../pages/admin/Enrollments'
@@ -20,12 +21,20 @@ import Courses from '../pages/admin/Courses'
 import DurationMaster from '../pages/admin/DurationMaster'
 import Plans from '../pages/admin/Plans'
 import PlanForm from '../pages/admin/PlanForm'
+import PlanDetails from '../pages/admin/PlanDetails'
 import PlanEnrollments from '../pages/admin/PlanEnrollments'
 import InternalPlans from '../pages/admin/InternalPlans'
 import InternalPlanForm from '../pages/admin/InternalPlanForm'
 import AdminEnrollmentForm from '../pages/admin/AdminEnrollmentForm'
 import AdminBulkEnrollment from '../pages/admin/AdminBulkEnrollment'
 import CourseNames from '../pages/admin/CourseNames'
+import EmailLogs from '../pages/admin/EmailLogs'
+import RazorpayConfigs from '../pages/admin/RazorpayConfigs'
+import StudentHistory from '../pages/admin/StudentHistory'
+import PanelLayout from '../pages/panel/PanelLayout'
+import PanelDashboard from '../pages/panel/PanelDashboard'
+import PanelTransactions from '../pages/panel/PanelTransactions'
+import PanelPurchase from '../pages/panel/PanelPurchase'
 import RequireAuth from '../components/auth/RequireAuth'
 import { EnrollModalProvider } from '../context/EnrollModalContext'
 import EnrollModal from '../components/common/EnrollModal'
@@ -59,16 +68,36 @@ export default function AppRoutes() {
             <Route path="/institutions" element={<Institution />} />
             <Route path="/institution" element={<Navigate to="/institutions" replace />} />
             <Route path="/login" element={<Login />} />
+
+            {/* Shareable upgrade link — drops an existing student straight into
+                plan selection (Step 3) → payment, by email. Public, standalone. */}
+            <Route path="/upgrade/:email" element={<UpgradePlan />} />
+
+            {/* Personal panel for provisioned end-users (role: student). */}
+            <Route
+              path="/panel"
+              element={
+                <RequireAuth>
+                  <PanelLayout />
+                </RequireAuth>
+              }
+            >
+              <Route index element={<PanelDashboard />} />
+              <Route path="purchase" element={<PanelPurchase />} />
+              <Route path="transactions" element={<PanelTransactions />} />
+            </Route>
+
             <Route
               path="/admin"
               element={
-                <RequireAuth>
+                <RequireAuth adminOnly>
                   <AdminLayout />
                 </RequireAuth>
               }
             >
               <Route index element={<Dashboard />} />
               <Route path="enrollments" element={<Enrollments />} />
+              <Route path="students/:email" element={<StudentHistory />} />
               <Route path="internal-enrollments" element={<InternalEnrollments />} />
               <Route path="enrollments/new" element={<AdminEnrollmentForm />} />
               <Route path="enrollments/bulk" element={<AdminBulkEnrollment />} />
@@ -81,11 +110,14 @@ export default function AppRoutes() {
               <Route path="plans" element={<Plans />} />
               <Route path="plans/new" element={<PlanForm />} />
               <Route path="plans/:id" element={<PlanForm />} />
+              <Route path="plans/:id/view" element={<PlanDetails />} />
               <Route path="plans/:id/enrollments" element={<PlanEnrollments />} />
               <Route path="internal-plans" element={<InternalPlans />} />
               <Route path="internal-plans/new" element={<InternalPlanForm />} />
               <Route path="internal-plans/:id" element={<InternalPlanForm />} />
               <Route path="course-names" element={<CourseNames />} />
+              <Route path="email-logs" element={<EmailLogs />} />
+              <Route path="razorpay-configs" element={<RazorpayConfigs />} />
             </Route>
             <Route path="/*" element={<MainLayout />} />
           </Routes>

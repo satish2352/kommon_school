@@ -17,6 +17,27 @@ export const adminService = {
    */
   getEnrollmentById: (id) => api.get(`/admin/enrollments/${encodeURIComponent(id)}`),
   /**
+   * All enrollments sharing an email (grouped history), newest first, with
+   * server-side pagination. Returns
+   * { email, items, total, page, limit, totalPages, hasNext, hasPrev, currentPlan }.
+   * Powers the student-history page; `currentPlan` drives the days-left summary.
+   * @param {string} email
+   * @param {{ page?: number, limit?: number }} [filters]
+   */
+  getEnrollmentsByEmail: (email, filters = {}) =>
+    api.get(`/admin/enrollments/by-email${qs({ email, ...filters })}`),
+  /**
+   * Internal enrollments grouped to ONE row per email (latest enrollment +
+   * enrollmentCount). Returns { items, total, page, limit, totalPages }.
+   */
+  listInternalGrouped: (filters) => api.get(`/admin/enrollments/internal-grouped${qs(filters)}`),
+  /**
+   * All enrollments grouped to ONE row per email (latest + enrollmentCount),
+   * supporting the same filters as the flat list. Returns
+   * { items, total, page, limit, totalPages, hasNext, hasPrev }.
+   */
+  listEnrollmentsGrouped: (filters) => api.get(`/admin/enrollments/grouped${qs(filters)}`),
+  /**
    * Re-queue the external-API sync for an enrollment whose
    * external_sync_status is FAILED or DEAD_LETTER. Returns
    * { enrollmentId, externalSyncStatus, jobId }.

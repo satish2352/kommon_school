@@ -3,8 +3,9 @@
  * Used inside PaymentFlow.jsx on the 'ready' phase.
  *
  * Props:
- *   plan — { tier, name, durationMonths, finalPrice, discountPercent, discountLabel }
+ *   plan — { tier, name, durationMonths, durationUnit, finalPrice, discountPercent, discountLabel }
  */
+import { formatDuration } from '../../utils/formatDuration'
 
 const TIER_COLORS = {
   SILVER:   'bg-slate-100 text-slate-700 border-slate-200',
@@ -29,7 +30,7 @@ export default function PlanSummaryCard({ plan }) {
             <span className="font-semibold text-sm">{plan.name} Plan</span>
           </div>
           <div className="text-xs opacity-60 mt-0.5">
-            {plan.durationMonths === 1 ? '1 Month' : `${plan.durationMonths} Months`}
+            {formatDuration(plan.durationMonths, plan.durationUnit)}
             {plan.discountLabel ? ` · ${plan.discountLabel}` : ''}
           </div>
         </div>

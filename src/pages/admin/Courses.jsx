@@ -34,18 +34,10 @@ const formatFee = (fee) =>
 
 const EMPTY_FORM = {
   courseNameId: '',
-  coupon: '',
   courseFee: '',
   durationId: '',
   description: '',
   status: 'ACTIVE',
-  // Optional Sumago taxonomy overrides — each blank means "use the
-  // SUMAGO_* env-var default at provision-user time". Must match strings
-  // Sumago has registered for the organization (admin's responsibility).
-  sumagoGroup:   '',
-  sumagoUnit:    '',
-  sumagoPhase:   '',
-  sumagoSegment: '',
 };
 
 function validateForm(f) {
@@ -60,13 +52,12 @@ function validateForm(f) {
   } else if (Number(f.courseFee) > 9999999.99) {
     e.courseFee = 'Course fee is too large (max ₹9,999,999.99)';
   }
-  if (f.coupon && f.coupon.length > 50)      e.coupon      = 'Coupon must be at most 50 characters';
   if (f.description && f.description.length > 2000) e.description = 'Description must be at most 2000 characters';
   return e;
 }
 
 /* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const COL_COUNT = 6;
+const COL_COUNT = 5;
 
 function SkeletonRows({ count = 7 }) {
   return (
@@ -193,18 +184,10 @@ export default function Courses() {
     setEditCourse(course);
     setForm({
       courseNameId:  course.courseNameId != null ? String(course.courseNameId) : '',
-      coupon:        course.coupon ?? '',
       courseFee:     course.courseFee != null ? String(Number(course.courseFee)) : '',
       durationId:    course.duration?.id != null ? String(course.duration.id) : '',
       description:   course.description ?? '',
       status:        course.status ?? 'ACTIVE',
-      // Hydrate the Sumago overrides from the loaded row so the inputs
-      // round-trip on edit. Empty string when null so the controlled
-      // inputs don't switch between uncontrolled/controlled.
-      sumagoGroup:   course.sumagoGroup   ?? '',
-      sumagoUnit:    course.sumagoUnit    ?? '',
-      sumagoPhase:   course.sumagoPhase   ?? '',
-      sumagoSegment: course.sumagoSegment ?? '',
     });
     setFormErrors({});
     setModalOpen(true);
@@ -232,17 +215,10 @@ export default function Courses() {
       const payload = {
         courseNameId: Number(form.courseNameId),
         courseFee:    Number(form.courseFee),
-        ...(form.coupon.trim() ? { coupon: form.coupon.trim().toUpperCase() } : { coupon: null }),
         ...(form.description.trim() ? { description: form.description.trim() } : { description: null }),
         status:      form.status,
-        educationId: 1, // dummy: Education column removed from UI; backend/webhook still expect a value
+        educationId: null, // Education removed from UI; backend accepts null (FK is nullable)
         durationId:  form.durationId ? Number(form.durationId) : null,
-        // Sumago overrides — send null when blank so the backend clears
-        // any previously-saved value instead of keeping it.
-        sumagoGroup:   form.sumagoGroup.trim()   || null,
-        sumagoUnit:    form.sumagoUnit.trim()    || null,
-        sumagoPhase:   form.sumagoPhase.trim()   || null,
-        sumagoSegment: form.sumagoSegment.trim() || null,
       };
       if (editCourse) {
         await courseService.update(editCourse.id, payload);
@@ -351,7 +327,7 @@ export default function Courses() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Course Name', 'Coupon', 'Course Fee', 'Duration', 'Status', 'Actions'].map((h) => (
+              {['Course Name', 'Course Fee', 'Duration', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
@@ -383,9 +359,6 @@ export default function Courses() {
                         System
                       </span>
                     )}
-                  </Td>
-                  <Td className="font-mono text-xs text-slate-600">
-                    {c.coupon ?? '—'}
                   </Td>
                   <Td className="text-slate-900 font-semibold">
                     {formatFee(c.courseFee)}
@@ -500,16 +473,6 @@ export default function Courses() {
             error={formErrors.courseFee}
           />
 
-          <Input
-            label="Coupon Code"
-            type="text"
-            value={form.coupon}
-            onChange={(e) => setField('coupon', e.target.value.toUpperCase())}
-            onBlur={() => handleBlur('coupon')}
-            placeholder="e.g. EARLYBIRD20"
-            error={formErrors.coupon}
-          />
-
           <Select
             label="Duration"
             value={form.durationId}
@@ -539,49 +502,6 @@ export default function Courses() {
             placeholder="Brief course overview (optional)"
             error={formErrors.description}
           />
-
-          {/* ── Sumago taxonomy overrides ─────────────────────────────────
-              Optional. When set, students enrolled into THIS course will
-              appear in Sumago with these group / unit / phase / segment
-              strings instead of the org-wide SUMAGO_* env-var defaults.
-              Each field must match a value Sumago has registered for the
-              organization. Blank = use env default. */}
-          <div className="rounded-lg border border-slate-200 bg-slate-50/50 p-3 space-y-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                Sumago Taxonomy Overrides
-              </p>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Optional — leave blank to use the org-wide SUMAGO_GROUP / SUMAGO_UNIT / SUMAGO_PHASE / SUMAGO_SEGMENT env defaults. Each value must match what Sumago expects.
-              </p>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Input
-                label="Group"
-                value={form.sumagoGroup}
-                onChange={(e) => setField('sumagoGroup', e.target.value)}
-                placeholder="e.g. Engineering - UG"
-              />
-              <Input
-                label="Unit"
-                value={form.sumagoUnit}
-                onChange={(e) => setField('sumagoUnit', e.target.value)}
-                placeholder="e.g. B.Tech CSE"
-              />
-              <Input
-                label="Phase"
-                value={form.sumagoPhase}
-                onChange={(e) => setField('sumagoPhase', e.target.value)}
-                placeholder="e.g. Semester 1"
-              />
-              <Input
-                label="Segment"
-                value={form.sumagoSegment}
-                onChange={(e) => setField('sumagoSegment', e.target.value)}
-                placeholder="e.g. A"
-              />
-            </div>
-          </div>
         </div>
       </Modal>
 

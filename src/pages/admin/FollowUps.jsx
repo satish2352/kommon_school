@@ -1,9 +1,12 @@
-import { useState, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
 import { useFollowUps } from '../../hooks/useFollowUps';
+import { adminEmployeeService } from '../../services/adminEmployeeService';
 import {
   PageHeader,
   Card,
   Badge,
+  Select,
   Table,
   Th,
   Td,
@@ -30,7 +33,10 @@ function followUpBadgeVariant(status) {
 const STATUS_FILTERS = ['', 'NEW', 'CONTACTED', 'FOLLOW_UP', 'CALLBACK', 'CONVERTED', 'CLOSED'];
 
 /* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const HEADER_COLS = ['Enrollment', 'Name', 'Email', 'Phone', 'Status', 'Priority', 'Calls', 'Next follow-up', 'Last contact'];
+const HEADER_COLS = [
+  'Enrollment', 'Name', 'Email', 'Phone', 'Status', 'Assignee',
+  'Priority', 'Calls', 'Next follow-up', 'Last contact',
+];
 const COL_COUNT = HEADER_COLS.length;
 
 function SkeletonRows({ count = 7 }) {
@@ -38,15 +44,9 @@ function SkeletonRows({ count = 7 }) {
     <>
       {Array.from({ length: count }).map((_, i) => (
         <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-28" /></Td>
-          <Td><Skeleton w="w-36" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-12" /></Td>
-          <Td><Skeleton w="w-6" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
+          {Array.from({ length: COL_COUNT }).map((__, j) => (
+            <Td key={j}><Skeleton w="w-20" /></Td>
+          ))}
         </Tr>
       ))}
     </>
@@ -54,11 +54,24 @@ function SkeletonRows({ count = 7 }) {
 }
 
 export default function FollowUps() {
-  const [status, setStatus] = useState('');
-  const [page, setPage]     = useState(1);
+  const [status, setStatus]         = useState('');
+  const [page, setPage]             = useState(1);
+  // Lead-ownership filter — 'ALL' (default), 'unassigned', 'me', or employee UUID.
+  const [assignedTo, setAssignedTo] = useState('ALL');
+  const [employees, setEmployees]   = useState([]);
+  const [reassigningIds, setReassigningIds] = useState(new Set());
+  const [reloadKey, setReloadKey]   = useState(0);
+  const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
+
   const filters = useMemo(
-    () => ({ page, limit: 20, status: status || undefined }),
-    [page, status],
+    () => ({
+      page,
+      limit: 20,
+      status: status || undefined,
+      ...(assignedTo !== 'ALL' ? { assignedTo } : {}),
+      _reloadKey: reloadKey, // changing this forces useFollowUps to refetch
+    }),
+    [page, status, assignedTo, reloadKey],
   );
   const { data, loading, error } = useFollowUps(filters);
 
@@ -67,6 +80,44 @@ export default function FollowUps() {
   const hasNext = items.length === 20;
 
   const switchStatus = (s) => { setStatus(s); setPage(1); };
+
+  // Load employees for the assignee filter + per-row reassign dropdowns.
+  useEffect(() => {
+    let cancelled = false;
+    adminEmployeeService.list({ activeOnly: true, limit: 500 })
+      .then((res) => { if (!cancelled) setEmployees(res?.rows ?? []); })
+      .catch(() => { /* fail-soft; dropdowns just stay empty */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Per-row reassign handler. The followup's underlying enrollment is the
+  // unit of assignment — assigning the lead moves both the enrollment and
+  // any future followups that derive from it. Existing followups retain
+  // their old followup.assigned_to until manually updated; we treat the
+  // enrollment-level assignment as the source of truth going forward.
+  const handleReassign = useCallback(async (followup, newEmployeeId) => {
+    const enrollmentId = followup.enrollment?.id || followup.enrollmentId;
+    if (!enrollmentId) {
+      toast.error('Cannot reassign — enrollment id missing');
+      return;
+    }
+    setReassigningIds((prev) => new Set(prev).add(followup.id));
+    try {
+      // Reuse the enrollment-level assignment API. Phase 1 introduced
+      // Enrollment.assigned_to as the authoritative ownership column.
+      await adminEmployeeService.assignEnrollment(enrollmentId, newEmployeeId || null);
+      toast.success(newEmployeeId ? 'Lead reassigned' : 'Lead unassigned');
+      refetch();
+    } catch (err) {
+      toast.error(err?.message || 'Reassignment failed');
+    } finally {
+      setReassigningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(followup.id);
+        return next;
+      });
+    }
+  }, [refetch]);
 
   return (
     <div className="space-y-6">
@@ -79,22 +130,37 @@ export default function FollowUps() {
         }
       />
 
-      {/* ── Status filter pills ───────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((s) => (
-          <button
-            key={s || 'all'}
-            type="button"
-            onClick={() => switchStatus(s)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-200 ${
-              status === s
-                ? 'bg-emerald-600 text-white'
-                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
+      {/* ── Status filter pills + Assignee filter ─────────────────────── */}
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap gap-2">
+          {STATUS_FILTERS.map((s) => (
+            <button
+              key={s || 'all'}
+              type="button"
+              onClick={() => switchStatus(s)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors duration-200 ${
+                status === s
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {s || 'All'}
+            </button>
+          ))}
+        </div>
+        <div className="w-56">
+          <Select
+            label="Assignee"
+            value={assignedTo}
+            onChange={(e) => { setAssignedTo(e.target.value); setPage(1); }}
           >
-            {s || 'All'}
-          </button>
-        ))}
+            <option value="ALL">All assignees</option>
+            <option value="unassigned">Unassigned</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>{emp.email}</option>
+            ))}
+          </Select>
+        </div>
       </div>
 
       {/* ── Error state ──────────────────────────────────────────────────── */}
@@ -148,6 +214,30 @@ export default function FollowUps() {
                   <Badge variant={followUpBadgeVariant(f.status)}>
                     {f.status}
                   </Badge>
+                </Td>
+                <Td>
+                  {/* Reassign select — writes to the underlying enrollment's
+                      assigned_to via the assignment API. Visible to admins
+                      only; permission gate enforced server-side. */}
+                  <select
+                    value={f.assignedTo ?? ''}
+                    disabled={reassigningIds.has(f.id) || employees.length === 0}
+                    onChange={(ev) => handleReassign(f, ev.target.value || null)}
+                    className="text-xs border border-slate-200 bg-white rounded px-1.5 py-1 max-w-[160px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                    title={f.assignee?.email || 'Unassigned'}
+                  >
+                    <option value="">Unassigned</option>
+                    {employees.map((emp) => (
+                      <option key={emp.id} value={emp.id}>{emp.email}</option>
+                    ))}
+                    {/* Keep the current assignee visible even if they're not
+                        in the loaded list (deactivated, role changed, etc.). */}
+                    {f.assignedTo && !employees.some((emp) => emp.id === f.assignedTo) && (
+                      <option value={f.assignedTo}>
+                        {f.assignee?.email || 'Unknown employee'}
+                      </option>
+                    )}
+                  </select>
                 </Td>
                 <Td className="text-slate-600">
                   {f.priority ?? '—'}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { adminService } from '../../services/adminService';
+import { adminEmployeeService } from '../../services/adminEmployeeService';
 import {
   PageHeader,
   Card,
@@ -231,6 +232,7 @@ function readQueryState(searchParams) {
     syncStatus:    searchParams.get('sync')   ?? 'ALL',
     fromDate:      searchParams.get('from')   ?? '',
     toDate:        searchParams.get('to')     ?? '',
+    assignedTo:    searchParams.get('assignee') ?? 'ALL',
   };
 }
 
@@ -248,6 +250,7 @@ function writeQueryState(state) {
   if (state.syncStatus !== 'ALL')    params.set('sync', state.syncStatus);
   if (state.fromDate)                params.set('from', state.fromDate);
   if (state.toDate)                  params.set('to', state.toDate);
+  if (state.assignedTo && state.assignedTo !== 'ALL') params.set('assignee', state.assignedTo);
   return params;
 }
 
@@ -267,6 +270,24 @@ export default function Enrollments() {
   const [syncStatus,    setSyncStatus]    = useState(initialState.syncStatus);
   const [fromDate,      setFromDate]      = useState(initialState.fromDate);
   const [toDate,        setToDate]        = useState(initialState.toDate);
+  // Lead-ownership filter — 'ALL' (default), 'unassigned', or an employee UUID.
+  // URL-persisted via the same initialState pattern; defaults to 'ALL' so
+  // existing bookmarks/links don't break.
+  const [assignedTo,    setAssignedTo]    = useState(initialState.assignedTo ?? 'ALL');
+
+  // Employee list for the assignee filter dropdown + per-row Assign control.
+  // Loaded once; fail-soft (we render an empty list and disable the controls).
+  const [employees,     setEmployees]     = useState([]);
+  // Per-row spinner so the Assign select can show a tiny loading hint.
+  const [assigningIds,  setAssigningIds]  = useState(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+    adminEmployeeService.list({ activeOnly: true, limit: 500 })
+      .then((res) => { if (!cancelled) setEmployees(res?.rows ?? []); })
+      .catch(() => { /* not fatal — Assignee dropdown just stays empty */ });
+    return () => { cancelled = true; };
+  }, []);
 
   /**
    * Debounced search term. The raw `search` state updates every keystroke
@@ -299,9 +320,10 @@ export default function Enrollments() {
       syncStatus,
       fromDate,
       toDate,
+      assignedTo,
     });
     setSearchParams(next, { replace: true });
-  }, [page, limit, debouncedSearch, candidateType, status, syncStatus, fromDate, toDate, setSearchParams]);
+  }, [page, limit, debouncedSearch, candidateType, status, syncStatus, fromDate, toDate, assignedTo, setSearchParams]);
 
   /* ── Filters → server query ─────────────────────────────────────────── */
   const filters = useMemo(() => ({
@@ -313,7 +335,8 @@ export default function Enrollments() {
     ...(syncStatus    !== 'ALL'           ? { externalSyncStatus: syncStatus } : {}),
     ...(fromDate                          ? { fromDate } : {}),
     ...(toDate                            ? { toDate }   : {}),
-  }), [page, limit, debouncedSearch, candidateType, status, syncStatus, fromDate, toDate]);
+    ...(assignedTo    !== 'ALL'           ? { assignedTo } : {}),
+  }), [page, limit, debouncedSearch, candidateType, status, syncStatus, fromDate, toDate, assignedTo]);
 
   // One row PER EMAIL (latest enrollment + enrollmentCount). Deduped globally
   // on the server, so a re-enrolling student appears once; the count badge and
@@ -350,6 +373,7 @@ export default function Enrollments() {
     candidateType !== 'ALL' ||
     status        !== 'ALL' ||
     syncStatus    !== 'ALL' ||
+    assignedTo    !== 'ALL' ||
     fromDate ||
     toDate ||
     search;
@@ -358,10 +382,31 @@ export default function Enrollments() {
     setCandidateType('ALL');
     setStatus('ALL');
     setSyncStatus('ALL');
+    setAssignedTo('ALL');
     setFromDate('');
     setToDate('');
     setPage(1);
   };
+
+  // Per-row assignment handler — mutates a single enrollment's assigned_to.
+  // Optimistic refresh strategy: clear spinner, refetch the list once the
+  // PATCH resolves so the cell shows the freshly-resolved assignee email.
+  const handleAssign = useCallback(async (enrollmentId, employeeId) => {
+    setAssigningIds((prev) => new Set(prev).add(enrollmentId));
+    try {
+      await adminEmployeeService.assignEnrollment(enrollmentId, employeeId || null);
+      toast.success(employeeId ? 'Lead assigned' : 'Lead unassigned');
+      refetch();
+    } catch (err) {
+      toast.error(err?.message || 'Assignment failed');
+    } finally {
+      setAssigningIds((prev) => {
+        const next = new Set(prev);
+        next.delete(enrollmentId);
+        return next;
+      });
+    }
+  }, [refetch]);
 
   /* ── Page-change helpers ───────────────────────────────────────────── */
   // Any filter change must reset to page 1, otherwise the user may land on
@@ -462,6 +507,20 @@ export default function Enrollments() {
             </Select>
           </div>
 
+          <div className="w-48">
+            <Select
+              label="Assignee"
+              value={assignedTo}
+              onChange={(e) => onFilterChange(setAssignedTo)(e.target.value)}
+            >
+              <option value="ALL">All assignees</option>
+              <option value="unassigned">Unassigned</option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>{emp.email}</option>
+              ))}
+            </Select>
+          </div>
+
           <div className="w-40">
             <Input
               label="From Date"
@@ -541,6 +600,7 @@ export default function Enrollments() {
                   { key: 'plan',   label: 'Active Plan' },
                   { key: 'status', label: 'Status' },
                   { key: 'sync',   label: 'Sync' },
+                  { key: 'assignee', label: 'Assignee' },
                   { key: 'created',label: 'Created' },
                   { key: 'act',    label: '' },
                 ].map((h) => (
@@ -648,6 +708,31 @@ export default function Enrollments() {
                     ) : (
                       <span className="text-slate-300 text-xs">—</span>
                     )}
+                  </Td>
+                  <Td>
+                    {/* Per-row assign control. Reads the row's current
+                        assignee from the backend response; writes via
+                        PATCH /admin/enrollments/:id/assign on change. */}
+                    <select
+                      value={e.assignedTo ?? ''}
+                      disabled={assigningIds.has(e.id) || employees.length === 0}
+                      onChange={(ev) => handleAssign(e.id, ev.target.value || null)}
+                      className="text-xs border border-slate-200 bg-white rounded px-1.5 py-1 max-w-[160px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                      title={e.assignee?.email || 'Unassigned'}
+                    >
+                      <option value="">Unassigned</option>
+                      {employees.map((emp) => (
+                        <option key={emp.id} value={emp.id}>{emp.email}</option>
+                      ))}
+                      {/* Fallback option if the current assignee isn't in the
+                          loaded employees list (e.g. deactivated mid-page) —
+                          keeps the dropdown's current value visible. */}
+                      {e.assignedTo && !employees.some((emp) => emp.id === e.assignedTo) && (
+                        <option value={e.assignedTo}>
+                          {e.assignee?.email || 'Unknown employee'}
+                        </option>
+                      )}
+                    </select>
                   </Td>
                   <Td className="text-slate-500 text-xs">
                     {createdAt ? new Date(createdAt).toLocaleString() : '—'}

@@ -29,12 +29,18 @@ import AdminEnrollmentForm from '../pages/admin/AdminEnrollmentForm'
 import AdminBulkEnrollment from '../pages/admin/AdminBulkEnrollment'
 import CourseNames from '../pages/admin/CourseNames'
 import EmailLogs from '../pages/admin/EmailLogs'
+import EmployeesManagement from '../pages/admin/EmployeesManagement'
 import RazorpayConfigs from '../pages/admin/RazorpayConfigs'
 import StudentHistory from '../pages/admin/StudentHistory'
 import PanelLayout from '../pages/panel/PanelLayout'
 import PanelDashboard from '../pages/panel/PanelDashboard'
 import PanelTransactions from '../pages/panel/PanelTransactions'
 import PanelPurchase from '../pages/panel/PanelPurchase'
+import EmployeeLayout from '../pages/employee/EmployeeLayout'
+import EmployeeDashboard from '../pages/employee/EmployeeDashboard'
+import EmployeeLeads from '../pages/employee/EmployeeLeads'
+import EmployeeLeadDetail from '../pages/employee/EmployeeLeadDetail'
+import EmployeeProfile from '../pages/employee/EmployeeProfile'
 import RequireAuth from '../components/auth/RequireAuth'
 import { EnrollModalProvider } from '../context/EnrollModalContext'
 import EnrollModal from '../components/common/EnrollModal'
@@ -87,6 +93,25 @@ export default function AppRoutes() {
               <Route path="transactions" element={<PanelTransactions />} />
             </Route>
 
+            {/* Employee Follow-Up Portal (role: employee). Mirrors the
+                /admin and /panel route groups — separate layout, separate
+                guard. Backend list endpoints already enforce ownership via
+                LEADS_VIEW_OWN, so the URL is the only thing the frontend
+                gates here. */}
+            <Route
+              path="/employee"
+              element={
+                <RequireAuth employeeOnly>
+                  <EmployeeLayout />
+                </RequireAuth>
+              }
+            >
+              <Route index             element={<EmployeeDashboard />} />
+              <Route path="leads"      element={<EmployeeLeads />} />
+              <Route path="leads/:id"  element={<EmployeeLeadDetail />} />
+              <Route path="profile"    element={<EmployeeProfile />} />
+            </Route>
+
             <Route
               path="/admin"
               element={
@@ -118,6 +143,7 @@ export default function AppRoutes() {
               <Route path="course-names" element={<CourseNames />} />
               <Route path="email-logs" element={<EmailLogs />} />
               <Route path="razorpay-configs" element={<RazorpayConfigs />} />
+              <Route path="employees" element={<EmployeesManagement />} />
             </Route>
             <Route path="/*" element={<MainLayout />} />
           </Routes>

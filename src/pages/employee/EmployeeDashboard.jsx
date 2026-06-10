@@ -10,9 +10,6 @@ import {
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
-const pct = (frac) =>
-  `${Math.round((frac || 0) * 1000) / 10}%`; // 1 decimal
-
 const fmtDateTime = (iso) => {
   if (!iso) return '—';
   try { return new Date(iso).toLocaleString(); } catch { return '—'; }
@@ -22,18 +19,16 @@ const fmtDateTime = (iso) => {
 
 /**
  * Tile component. `tone` drives the accent colour; `to` makes the whole
- * tile a link to a pre-filtered Leads view (e.g. clicking "Overdue" deep-
- * links into /employee/leads?followupStatus=...). When `to` is omitted the
- * tile renders as a plain card.
+ * tile a link to a pre-filtered Leads view (so clicking "Interested"
+ * lands the employee on /employee/leads filtered to interested leads).
  */
 function Tile({ label, value, tone = 'slate', hint, to }) {
   const toneClasses = {
-    slate:   { bg: 'bg-white border-slate-200',     accent: 'text-slate-900' },
-    blue:    { bg: 'bg-blue-50/60 border-blue-200', accent: 'text-blue-700' },
-    amber:   { bg: 'bg-amber-50/60 border-amber-200', accent: 'text-amber-700' },
-    red:     { bg: 'bg-red-50/60 border-red-200',   accent: 'text-red-700' },
+    slate:   { bg: 'bg-white border-slate-200',           accent: 'text-slate-900' },
+    blue:    { bg: 'bg-blue-50/60 border-blue-200',       accent: 'text-blue-700' },
+    amber:   { bg: 'bg-amber-50/60 border-amber-200',     accent: 'text-amber-700' },
     emerald: { bg: 'bg-emerald-50/60 border-emerald-200', accent: 'text-emerald-700' },
-    violet:  { bg: 'bg-violet-50/60 border-violet-200',   accent: 'text-violet-700' },
+    rose:    { bg: 'bg-rose-50/60 border-rose-200',       accent: 'text-rose-700' },
   };
   const t = toneClasses[tone] || toneClasses.slate;
   const inner = (
@@ -89,7 +84,7 @@ export default function EmployeeDashboard() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        subtitle="Your daily follow-up snapshot."
+        subtitle="Your follow-up snapshot. Click any card to see the matching leads."
       />
 
       {/* ── Error state ─────────────────────────────────────────────── */}
@@ -99,92 +94,56 @@ export default function EmployeeDashboard() {
         </div>
       )}
 
-      {/* ── Top row: "what needs attention" tiles ───────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* ── KPI tiles ──────────────────────────────────────────────────
+          Simplified per product decision to 5 categories. Every tile is
+          a link to the Leads page with the matching followupStatus query
+          so clicking drills straight into the filtered list.
+          --------------------------------------------------------- */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {loading ? (
           <>
-            <TileSkeleton /><TileSkeleton /><TileSkeleton /><TileSkeleton />
+            <TileSkeleton /><TileSkeleton /><TileSkeleton />
+            <TileSkeleton /><TileSkeleton />
           </>
         ) : (
           <>
             <Tile
-              label="Today's follow-ups"
-              value={m.todaysFollowups ?? 0}
-              tone="blue"
-              hint="Scheduled for today"
-              to="/employee/leads"
-            />
-            <Tile
-              label="Overdue"
-              value={m.overdueFollowups ?? 0}
-              tone="red"
-              hint="Past due, not closed"
-              to="/employee/leads"
-            />
-            <Tile
-              label="Upcoming"
-              value={m.upcomingFollowups ?? 0}
-              tone="amber"
-              hint="Next 7 days"
-              to="/employee/leads"
-            />
-            <Tile
               label="New leads"
               value={m.newLeads ?? 0}
-              tone="slate"
-              hint="Untouched + status: new"
+              tone="blue"
+              hint="No follow-up taken yet"
               to="/employee/leads?followupStatus=new"
+            />
+            <Tile
+              label="Followed-up"
+              value={m.followedUp ?? 0}
+              tone="amber"
+              hint="In progress"
+              to="/employee/leads?followupStatus=contacted"
+            />
+            <Tile
+              label="Interested"
+              value={m.interested ?? 0}
+              tone="emerald"
+              hint="Showing interest"
+              to="/employee/leads?followupStatus=interested"
+            />
+            <Tile
+              label="Not interested"
+              value={m.notInterested ?? 0}
+              tone="rose"
+              hint="Declined"
+              to="/employee/leads?followupStatus=not_interested"
+            />
+            <Tile
+              label="Closed"
+              value={m.closed ?? 0}
+              tone="slate"
+              hint="Wrapped up"
+              to="/employee/leads?followupStatus=closed"
             />
           </>
         )}
-      </div>
-
-      {/* ── Mid row: pipeline breakdown ─────────────────────────────── */}
-      <div>
-        <h2 className="text-sm font-semibold text-slate-700 mb-3 mt-2 uppercase tracking-wider">
-          Pipeline
-        </h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {loading ? (
-            <>
-              <TileSkeleton /><TileSkeleton /><TileSkeleton />
-              <TileSkeleton /><TileSkeleton />
-            </>
-          ) : (
-            <>
-              <Tile
-                label="Interested"
-                value={m.interested ?? 0}
-                tone="emerald"
-                to="/employee/leads?followupStatus=interested"
-              />
-              <Tile
-                label="Payment pending"
-                value={m.paymentPending ?? 0}
-                tone="amber"
-                to="/employee/leads?followupStatus=payment_pending"
-              />
-              <Tile
-                label="Converted"
-                value={m.converted ?? 0}
-                tone="emerald"
-                to="/employee/leads?followupStatus=converted"
-              />
-              <Tile
-                label="Not interested"
-                value={m.notInterested ?? 0}
-                tone="slate"
-                to="/employee/leads?followupStatus=not_interested"
-              />
-              <Tile
-                label="Closed"
-                value={m.closed ?? 0}
-                tone="slate"
-                to="/employee/leads?followupStatus=closed"
-              />
-            </>
-          )}
-        </div>
       </div>
 
       {/* ── Performance summary + recent activity (2-col on lg) ──── */}
@@ -205,13 +164,10 @@ export default function EmployeeDashboard() {
                 </dd>
               </div>
               <div className="flex items-baseline justify-between">
-                <dt className="text-slate-600">Conversion rate</dt>
+                <dt className="text-slate-600">Converted</dt>
                 <dd className="text-2xl font-bold text-emerald-700 tabular-nums">
-                  {pct(m.conversionRate)}
+                  {m.converted ?? 0}
                 </dd>
-              </div>
-              <div className="text-[11px] text-slate-400 pt-3 border-t border-slate-100">
-                Conversion rate = (converted + payment completed) ÷ total assigned.
               </div>
             </dl>
           )}
@@ -219,7 +175,7 @@ export default function EmployeeDashboard() {
 
         {/* Recent activity */}
         <div className="lg:col-span-2">
-          <Card title="Recent activity" subtitle="Your last 10 notes.">
+          <Card title="Recent activity" subtitle="Your last 10 follow-up notes.">
             {loading ? (
               <div className="space-y-3">
                 <Skeleton w="w-full" />
@@ -228,7 +184,7 @@ export default function EmployeeDashboard() {
               </div>
             ) : ra.length === 0 ? (
               <div className="text-sm text-slate-400 italic py-2">
-                No recent activity. Open a lead and add the first note.
+                No recent activity. Open a lead and record your first follow-up.
               </div>
             ) : (
               <ul className="divide-y divide-slate-100">
@@ -237,7 +193,7 @@ export default function EmployeeDashboard() {
                     <div className="flex items-start justify-between gap-3 mb-1">
                       <div className="flex items-center gap-2 min-w-0">
                         <Badge variant={entry.isSystem ? 'neutral' : 'info'}>
-                          {entry.kind || 'note'}
+                          {entry.isSystem ? 'system' : 'note'}
                         </Badge>
                         {entry.enrollmentId ? (
                           <Link

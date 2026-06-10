@@ -58,17 +58,20 @@ function followUpBadgeVariant(status) {
 // even the ALL view.
 const HIDDEN_STATUSES = 'payment_completed,lost';
 
+// Status pills aligned to the simplified employee status set so admin +
+// employee views agree on terminology. Historical rows whose status
+// doesn't map to any of these (call_back_later, payment_pending,
+// followup_scheduled, invalid_number, no_response) remain reachable via
+// the ALL pill but no longer get their own dedicated pill.
 const STATUS_FILTERS = [
-  { key: 'open',     value: '',                   label: 'OPEN',             openOnly: true  },
-  { key: 'new',      value: 'new',                label: 'NEW'                                },
-  { key: 'cont',     value: 'contacted',          label: 'CONTACTED'                          },
-  { key: 'sched',    value: 'followup_scheduled', label: 'FOLLOW-UP'                          },
-  { key: 'cb',       value: 'call_back_later',    label: 'CALLBACK'                           },
-  { key: 'int',      value: 'interested',         label: 'INTERESTED'                         },
-  { key: 'pp',       value: 'payment_pending',    label: 'PAYMENT PENDING'                    },
-  { key: 'conv',     value: 'converted',          label: 'CONVERTED'                          },
-  { key: 'closed',   value: 'closed',             label: 'CLOSED'                             },
-  { key: 'all',      value: '',                   label: 'ALL',              openOnly: false },
+  { key: 'open',     value: '',               label: 'OPEN',                  openOnly: true  },
+  { key: 'new',      value: 'new',            label: 'NEW'                                    },
+  { key: 'cont',     value: 'contacted',      label: 'FOLLOW-UP IN PROGRESS'                  },
+  { key: 'int',      value: 'interested',     label: 'INTERESTED'                             },
+  { key: 'ni',       value: 'not_interested', label: 'NOT INTERESTED'                         },
+  { key: 'conv',     value: 'converted',      label: 'CONVERTED'                              },
+  { key: 'closed',   value: 'closed',         label: 'CLOSED'                                 },
+  { key: 'all',      value: '',               label: 'ALL',                   openOnly: false },
 ];
 
 // Default: OPEN. Stored as the pill's `key` so the two wildcard pills
@@ -78,7 +81,7 @@ const DEFAULT_PILL_KEY = 'open';
 /* ─── Skeleton rows ──────────────────────────────────────────────────────── */
 const HEADER_COLS = [
   'Enrollment', 'Name', 'Email', 'Phone', 'Status', 'Assignee',
-  'Priority', 'Calls', 'Next follow-up', 'Last contact',
+  'Next follow-up', 'Last contact',
 ];
 const COL_COUNT = HEADER_COLS.length;
 
@@ -300,12 +303,6 @@ export default function FollowUps() {
                       </option>
                     )}
                   </select>
-                </Td>
-                <Td className="text-slate-600">
-                  {f.priority ?? '—'}
-                </Td>
-                <Td className="text-slate-600">
-                  {f.callAttempts ?? 0}
                 </Td>
                 <Td className="text-slate-500 text-xs">
                   {f.nextFollowUpAt ? new Date(f.nextFollowUpAt).toLocaleString() : '—'}

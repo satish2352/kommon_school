@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { employeeLeadService } from '../../services/employeeLeadService';
 import {
   PageHeader,
@@ -20,20 +20,21 @@ import {
 // Employee-facing followup status labels. The DB enum has more values
 // (legacy + admin-only) — we expose only the buckets an employee actually
 // uses day-to-day.
-// Excludes `payment_completed` and `lost` - those statuses are out of
-// scope for the Follow-Up module per product decision. Historical rows
-// with those statuses are not surfaced anywhere; admins can still see
-// them via the dedicated admin Enrollments page for audit.
+// Simplified status set per product decision. Dashboard tiles deep-link
+// here with these query values; the lead-detail Status dropdown uses
+// the same set when an employee updates a lead.
+//   new                → no follow-up taken yet (untouched)
+//   contacted          → follow-up in progress (employee has spoken to lead)
+//   interested         → showing interest
+//   not_interested     → declined
+//   closed             → wrapped up (any final state)
 const FOLLOWUP_STATUS_FILTERS = [
-  { value: '',                   label: 'All'                 },
-  { value: 'new',                label: 'New'                 },
-  { value: 'contacted',          label: 'Contacted'           },
-  { value: 'followup_scheduled', label: 'Follow-up scheduled' },
-  { value: 'interested',         label: 'Interested'          },
-  { value: 'payment_pending',    label: 'Payment pending'     },
-  { value: 'converted',          label: 'Converted'           },
-  { value: 'not_interested',     label: 'Not interested'      },
-  { value: 'closed',             label: 'Closed'              },
+  { value: '',                   label: 'All'                    },
+  { value: 'new',                label: 'New'                    },
+  { value: 'contacted',          label: 'Follow-up In Progress'  },
+  { value: 'interested',         label: 'Interested'             },
+  { value: 'not_interested',     label: 'Not Interested'         },
+  { value: 'closed',             label: 'Closed'                 },
 ];
 
 const STATUS_BADGE_VARIANT = {
@@ -96,6 +97,7 @@ function SkeletonRows({ count = 6 }) {
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 
 export default function EmployeeLeads() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   // URL-persisted state so refreshing the page keeps the filter set.
   const [search, setSearch]                 = useState(searchParams.get('q') ?? '');
@@ -237,14 +239,19 @@ export default function EmployeeLeads() {
               const fu = lead.followup;
               const status = fu?.status || 'new';
               return (
-                <Tr key={lead.id} striped={idx % 2 === 1}>
+                <Tr
+                  key={lead.id}
+                  striped={idx % 2 === 1}
+                  // Full-row click opens the detail page (where notes +
+                  // status + next-follow-up are all recorded). Cursor and
+                  // hover hint communicate the affordance.
+                  onClick={() => navigate(`/employee/leads/${lead.id}`)}
+                  className="cursor-pointer hover:bg-emerald-50/40 transition-colors"
+                >
                   <Td>
-                    <Link
-                      to={`/employee/leads/${lead.id}`}
-                      className="text-slate-900 font-medium hover:text-emerald-700 hover:underline"
-                    >
+                    <div className="text-slate-900 font-medium">
                       {lead.fullName || '(no name)'}
-                    </Link>
+                    </div>
                     <div className="text-[11px] text-slate-400 font-mono mt-0.5">
                       {lead.enrollmentCode}
                     </div>

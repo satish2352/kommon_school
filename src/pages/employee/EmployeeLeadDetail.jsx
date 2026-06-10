@@ -14,34 +14,21 @@ import {
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
-// Status options surfaced to employees. Order = typical lifecycle
-// progression to give the UI a natural reading direction.
-// `payment_completed` and `lost` are intentionally excluded - they are
-// out of scope for this module per product decision (paid leads finish
-// outside the follow-up pipeline; lost has been deprecated as an
-// outcome). Use 'converted' for successful close, 'closed' for any other
-// final state.
+// Simplified status set per product decision. The DB enum still carries
+// the legacy values for historical rows, but employees only ever pick
+// from these 5.
+//   contacted       → 'Follow-up In Progress' (employee has spoken to lead,
+//                     waiting on outcome)
+//   interested      → lead expressed interest, ready to move forward
+//   not_interested  → lead said no
+//   converted       → successful close (payment / signup completed)
+//   closed          → final state for any other reason (no contact, dropped, etc.)
 const STATUS_OPTIONS = [
-  { value: 'new',                label: 'New' },
-  { value: 'contacted',          label: 'Contacted' },
-  { value: 'followup_scheduled', label: 'Follow-up scheduled' },
-  { value: 'interested',         label: 'Interested' },
-  { value: 'payment_pending',    label: 'Payment pending' },
-  { value: 'converted',          label: 'Converted' },
-  { value: 'not_interested',     label: 'Not interested' },
-  { value: 'call_back_later',    label: 'Call back later' },
-  { value: 'invalid_number',     label: 'Invalid number' },
-  { value: 'no_response',        label: 'No response' },
-  { value: 'closed',             label: 'Closed' },
-];
-
-// Note 'kind' presets for the Add Note form. metadata.kind is free-form
-// on the backend; these chips are just UI sugar.
-const NOTE_KINDS = [
-  { value: 'note',     label: 'Note' },
-  { value: 'call',     label: 'Call' },
-  { value: 'whatsapp', label: 'WhatsApp' },
-  { value: 'email',    label: 'Email' },
+  { value: 'contacted',          label: 'Follow-up In Progress' },
+  { value: 'interested',         label: 'Interested'            },
+  { value: 'not_interested',     label: 'Not Interested'        },
+  { value: 'converted',          label: 'Converted'             },
+  { value: 'closed',             label: 'Closed'                },
 ];
 
 const STATUS_BADGE_VARIANT = {
@@ -108,13 +95,13 @@ export default function EmployeeLeadDetail() {
   const enrollment = data?.enrollment ?? null;
   const followup   = data?.followup   ?? null;
 
-  // The status select shows the current followup's status (or 'new' when
-  // there's no followup yet — first-touch default).
-  const currentStatus = followup?.status || 'new';
+  // The status select shows the current followup's status. When there's
+  // no followup yet (untouched lead), we default to 'contacted' since
+  // the employee is here precisely to record the first follow-up.
+  const currentStatus = followup?.status || 'contacted';
 
   // ── Add note form state ─────────────────────────────────────────────
   const [noteBody, setNoteBody] = useState('');
-  const [noteKind, setNoteKind] = useState('note');
   const [addingNote, setAddingNote] = useState(false);
 
   const submitNote = async (e) => {
@@ -128,9 +115,12 @@ export default function EmployeeLeadDetail() {
     try {
       await employeeLeadService.addNote(enrollmentId, {
         body,
-        metadata: { kind: noteKind },
+        // Single-kind metadata - the UI no longer surfaces a chip selector,
+        // every note is just a 'note'. The metadata column stays a JSON
+        // blob so future kinds could be reintroduced without a migration.
+        metadata: { kind: 'note' },
       });
-      toast.success('Note added');
+      toast.success('Follow-up recorded');
       setNoteBody('');
       refetch();
     } catch (err) {
@@ -394,30 +384,21 @@ export default function EmployeeLeadDetail() {
             </form>
           </Card>
 
-          {/* Add note */}
-          <Card title="Add Note">
+          {/* Record follow-up — single textarea, no kind chips. */}
+          <Card title="Record Follow-up" subtitle="What was discussed?">
             <form onSubmit={submitNote} className="space-y-3">
-              <Select
-                label="Type"
-                value={noteKind}
-                onChange={(e) => setNoteKind(e.target.value)}
-              >
-                {NOTE_KINDS.map((k) => (
-                  <option key={k.value} value={k.value}>{k.label}</option>
-                ))}
-              </Select>
               <Textarea
-                label="Note"
+                label="Discussion / notes"
                 value={noteBody}
                 onChange={(e) => setNoteBody(e.target.value)}
-                rows={4}
-                placeholder="What happened on this contact attempt?"
+                rows={5}
+                placeholder="What did you discuss with the lead? Any commitments, objections, or next steps."
                 maxLength={5000}
               />
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-slate-400">{noteBody.length}/5000</span>
                 <Button type="submit" variant="primary" loading={addingNote} disabled={!noteBody.trim()}>
-                  Add note
+                  Save follow-up
                 </Button>
               </div>
             </form>

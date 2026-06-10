@@ -616,7 +616,7 @@ export default function Enrollments() {
                   colSpan={COLS}
                   icon={
                     <svg className="w-10 h-10" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2h5m6 0v-2a2 2 0 00-2-2H9a2 2 0 00-2 2v2m6 0H9" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                     </svg>
                   }
                   title={filtersActive ? 'No enrollments match the current filters' : 'No enrollments yet'}
@@ -673,9 +673,11 @@ export default function Enrollments() {
                     </Badge>
                   </Td>
                   {/* Active Plan — latest PAID plan's Plan ID + days left.
-                      Shown for EXTERNAL students (per requirement); '—' otherwise. */}
+                      Shown for BOTH external and internal students: for internal
+                      rows the Plan ID is the internal plan's externalPlanId
+                      (from /admin/internal-plans); '—' when no paid plan yet. */}
                   <Td>
-                    {ctype === 'EXTERNAL' && e.activePlan?.externalPlanId ? (
+                    {e.activePlan?.externalPlanId ? (
                       <div>
                         <span className="font-mono text-[11px] text-slate-700">{e.activePlan.externalPlanId}</span>
                         {e.activePlan.daysLeft != null && (

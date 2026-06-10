@@ -3,6 +3,7 @@ import { adminEnrollmentService } from '../../services/adminEnrollmentService';
 import { courseService } from '../../services/courseService';
 import { internalPlansService } from '../../services/internalPlansService';
 import { calculate as calculateFee } from '../../services/feeCalculationService';
+import { internalDurationLabel } from '../../utils/internalPlanDuration';
 import toast from 'react-hot-toast';
 import {
   PageHeader,
@@ -17,13 +18,6 @@ import {
 } from '../../components/admin';
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
-const DURATION_LABELS = {
-  '1_MONTH':   '1 Month',
-  '3_MONTHS':  '3 Months',
-  '6_MONTHS':  '6 Months',
-  '12_MONTHS': '12 Months',
-};
-
 const inr = (amount) =>
   `Rs.${Number(amount).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
@@ -303,7 +297,7 @@ export default function AdminBulkEnrollment() {
               </option>
               {plansForCourse.map((p) => (
                 <option key={p.id} value={String(p.id)}>
-                  {p.name} ({DURATION_LABELS[p.duration] ?? p.duration}){coursePrice != null ? ` — ${inr(coursePrice)}` : ''}
+                  {p.name} ({internalDurationLabel(p)}){coursePrice != null ? ` — ${inr(coursePrice)}` : ''}
                 </option>
               ))}
             </Select>
@@ -347,13 +341,14 @@ export default function AdminBulkEnrollment() {
               Required columns (in this exact order):
             </p>
             <code className="text-[11px] text-slate-600 bg-slate-100 px-2 py-1 rounded block mb-3 overflow-x-auto whitespace-nowrap">
-              name, email, phone, role, education, readiness, source, promoCode, notes
+              name, email, phone
             </code>
             <ul className="text-xs text-slate-500 space-y-1 list-disc list-inside">
+              <li>Only name, email and phone — the plan comes from your selection above</li>
+              <li>Course + Internal Plan picked above apply to every row</li>
               <li>Maximum 1 000 rows per upload</li>
               <li>Maximum file size: 2 MB</li>
               <li>Header row is required</li>
-              <li>Course + Internal Plan picked above apply to every row</li>
             </ul>
           </div>
           <div className="shrink-0">

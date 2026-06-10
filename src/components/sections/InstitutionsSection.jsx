@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useBranding } from '../../context/BrandingContext'
 import { useInstitutionModal } from '../../context/InstitutionModalContext'
 import ContactTabs from '../common/ContactTabs'
 
@@ -96,6 +97,7 @@ const supportPoints = [
 
 export default function InstitutionsSection() {
   const { open: openInstitutionModal } = useInstitutionModal()
+  const { brandName } = useBranding()
   const [activeStep, setActiveStep] = useState(0)
   const [resetting, setResetting] = useState(false)
   const hasLooped = useRef(false)
@@ -311,7 +313,7 @@ export default function InstitutionsSection() {
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
-                      <span className="text-green-600 text-[10px] font-bold uppercase tracking-widest">Kommon School Solution</span>
+                      <span className="text-green-600 text-[10px] font-bold uppercase tracking-widest">{brandName} Solution</span>
                     </div>
                     <p className="text-gray-800 font-semibold text-sm leading-relaxed mb-3">{p.solution}</p>
                   </div>

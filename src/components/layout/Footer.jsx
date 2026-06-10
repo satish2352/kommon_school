@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { useBranding } from '../../context/BrandingContext'
 
 
 const productLinks = [
@@ -19,6 +20,7 @@ const legalLinks = [
 ]
 
 export default function Footer() {
+  const { brandName } = useBranding()
   return (
     <footer className="bg-[#1A1A2E] text-gray-300">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -59,7 +61,7 @@ export default function Footer() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
               </div>
-              <span className="text-white font-bold text-sm">Kommon School AI</span>
+              <span className="text-white font-bold text-sm">{brandName} AI</span>
             </Link>
             <p className="text-gray-400 text-sm leading-relaxed">
               AI-powered mock interviews with instant feedback and a personalized roadmap — for students, job seekers, and working professionals.
@@ -115,7 +117,7 @@ export default function Footer() {
             © {new Date().getFullYear()} Sumago Infotech Pvt Ltd. All rights reserved.
           </p>
           <p className="text-gray-500 text-xs text-center sm:text-right">
-            Powered by <span className="text-gray-300 font-medium">Kommon School</span> | Brought to you by{' '}
+            Powered by <span className="text-gray-300 font-medium">{brandName}</span> | Brought to you by{' '}
             <span className="text-gray-300 font-medium">Sumago Infotech Pvt Ltd</span>
           </p>
         </div>

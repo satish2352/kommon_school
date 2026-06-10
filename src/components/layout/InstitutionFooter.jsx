@@ -1,7 +1,9 @@
 import { useInstitutionModal } from '../../context/InstitutionModalContext'
+import { useBranding } from '../../context/BrandingContext'
 
 export default function InstitutionFooter() {
   const { open } = useInstitutionModal()
+  const { brandName } = useBranding()
   const year = new Date().getFullYear()
 
   return (
@@ -62,7 +64,7 @@ export default function InstitutionFooter() {
         {/* Bottom — meta */}
         <div className="pt-6 text-white/40 text-[11px]">
           <p>
-            Powered by <span className="text-white/60 font-medium">Kommon School</span> · Brought to you by{' '}
+            Powered by <span className="text-white/60 font-medium">{brandName}</span> · Brought to you by{' '}
             <span className="text-white/60 font-medium">Sumago Infotech Pvt Ltd</span>
           </p>
         </div>

@@ -219,7 +219,7 @@ export function revalidatePlanSelection(planSelection, plans) {
     const changed =
       Number.isFinite(cachedFinal) && Math.abs(liveFinal - cachedFinal) > 0.001 ||
       Number.isFinite(cachedDiscount) && Math.abs(liveDiscount - cachedDiscount) > 0.001 ||
-      pricing.durationMonths !== planSelection.durationMonths ||
+      Number(pricing.durationMonths) !== Number(planSelection.durationMonths) ||
       (pricing.durationUnit ?? 'MONTHS') !== (planSelection.durationUnit ?? 'MONTHS');
 
     return { status: changed ? 'changed' : 'valid', pricing, plan };

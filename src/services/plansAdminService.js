@@ -91,8 +91,11 @@ export const plansAdminService = {
 
   /**
    * Upsert a single pricing row for a plan + duration.
+   * The row's unit travels in the body (durationUnit), so the duration value in
+   * the URL plus that unit form the upsert key. Any positive value is allowed,
+   * including fractional (e.g. 1.5).
    * @param {number} planId
-   * @param {number} durationMonths - one of 1/3/6/12
+   * @param {number} durationMonths - the duration value (may be fractional)
    * @param {object} body
    */
   upsertPricing: (planId, durationMonths, body) =>

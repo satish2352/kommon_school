@@ -16,6 +16,7 @@ import { listPublic as listPublicPlans, selectForEnrollment } from '../services/
 import PlanSelector from '../components/common/PlanSelector'
 import PlanComparisonModal from '../components/common/PlanComparisonModal'
 import PaymentFlow from '../components/common/PaymentFlow'
+import { useBranding } from '../context/BrandingContext'
 
 // Mini step indicator — the in-flow "Step 3 → Step 4" the link drops into.
 function StepDots({ active }) {
@@ -40,6 +41,7 @@ function StepDots({ active }) {
 export default function UpgradePlan() {
   const { email: emailParam } = useParams()
   const email = decodeURIComponent(emailParam ?? '')
+  const { brandName } = useBranding()
 
   // 'init' → loading enrollment + plans; 'plan' → selection; 'payment'; 'done'
   const [phase, setPhase] = useState('init')
@@ -98,7 +100,7 @@ export default function UpgradePlan() {
         {/* Header */}
         <div className="px-6 pt-6 pb-5 border-b border-slate-100">
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-lg font-extrabold tracking-tight text-indigo-600">Kommon School</span>
+            <span className="text-lg font-extrabold tracking-tight text-indigo-600">{brandName}</span>
             <span className="ml-auto text-[11px] font-semibold uppercase tracking-widest text-indigo-500">Plan Upgrade</span>
           </div>
           <h1 className="text-xl font-bold text-slate-900">{headerTitle}</h1>

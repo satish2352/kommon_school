@@ -398,6 +398,14 @@ export default function AdminEnrollmentForm() {
   const [data, setData] = useState(EMPTY);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  // Step-1 captured fields are auto-saved as an unpaid draft enrollment
+  // so if admin closes the tab here, the lead is still tracked in
+  // Follow-Ups. draftEnrollmentId is echoed back to the backend on
+  // subsequent Step-1 saves (so going Back -> Next reuses the row) and
+  // on the final Step-3 submit (so the backend can discard the draft
+  // before creating the final paid enrollment).
+  const [draftEnrollmentId, setDraftEnrollmentId] = useState(null);
+  const [savingDraft, setSavingDraft] = useState(false);
 
   /* ── Plan state ── */
   const [courseList, setCourseList]               = useState([]);
@@ -489,11 +497,37 @@ export default function AdminEnrollmentForm() {
   const set = (key, val) => setData((prev) => ({ ...prev, [key]: val }));
 
   /* ── Navigation ── */
-  const goNext = () => {
+  const goNext = async () => {
     if (step === 0) {
       const e = validateStep0(data);
       if (Object.keys(e).length > 0) { setErrors(e); return; }
       setErrors({});
+
+      // Auto-save Step-1 fields as an unpaid draft so the lead is
+      // captured even if admin closes the tab now. Fail-soft: a draft
+      // save failure does NOT block navigation - the admin can still
+      // proceed and the final Step-3 submit will create the row.
+      setSavingDraft(true);
+      try {
+        const res = await adminEnrollmentService.saveDraft({
+          name:      data.name.trim(),
+          email:     data.email.trim().toLowerCase(),
+          phone:     data.phone.trim(),
+          role:      ROLE_MAP[data.role],
+          ...(data.education ? { education: EDUCATION_MAP[data.education] } : {}),
+          ...(data.readiness ? { readiness: READINESS_MAP[data.readiness] } : {}),
+          ...(data.source    ? { source: SOURCE_MAP[data.source] }          : {}),
+          ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
+          ...(draftEnrollmentId ? { draftEnrollmentId } : {}),
+        });
+        if (res?.enrollmentId) setDraftEnrollmentId(res.enrollmentId);
+      } catch (err) {
+        // Surface in console for diagnostics, do not block UX.
+        console.warn('[AdminEnrollmentForm] draft save failed:', err?.message || err);
+      } finally {
+        setSavingDraft(false);
+      }
+
       setStep(1);
     } else if (step === 1) {
       const e = validateStep1({ courseId: selectedCourseId, internalPlanId: selectedPlanId });
@@ -536,6 +570,10 @@ export default function AdminEnrollmentForm() {
         ...(data.readiness ? { readiness: READINESS_MAP[data.readiness] } : {}),
         ...(data.source    ? { source: SOURCE_MAP[data.source] }          : {}),
         ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
+        // Tell the backend which Step-1 draft to discard. Without this,
+        // the wizard would leave behind an unpaid lead row in Follow-Ups
+        // even after the final paid enrollment was created.
+        ...(draftEnrollmentId ? { draftEnrollmentId } : {}),
       };
 
       const resp = await adminEnrollmentService.createInternal(body);

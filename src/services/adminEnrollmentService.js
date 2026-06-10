@@ -29,6 +29,24 @@ export const adminEnrollmentService = {
   createInternal: (body) => api.post('/admin/enrollments/internal', body),
 
   /**
+   * Save Step-1 of the admin "+ New Enrollment" wizard as an unpaid
+   * draft so the lead is captured for Follow-Ups even if admin closes
+   * the tab before completing Step 3.
+   *
+   * Echo the returned `enrollmentId` back as `draftEnrollmentId` on
+   * subsequent calls so the same draft is updated in place instead of
+   * creating a duplicate when the admin steps back and forward.
+   *
+   * @param {{
+   *   name, email, phone, role,
+   *   education?, readiness?, source?, notes?,
+   *   draftEnrollmentId?,
+   * }} body
+   * @returns {Promise<{ enrollmentId, enrollmentCode, drafted: true }>}
+   */
+  saveDraft: (body) => api.post('/admin/enrollments/draft', body),
+
+  /**
    * Manually create an enrollment (admin-side, legacy planTier path).
    * Kept for any code still posting the old shape; new code should use
    * createInternal().

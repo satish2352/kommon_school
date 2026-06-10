@@ -39,19 +39,32 @@ const FOLLOWUP_STATUS_FILTERS = [
 
 const STATUS_BADGE_VARIANT = {
   new:                'info',
-  contacted:          'info',
-  followup_scheduled: 'warning',
+  contacted:          'warning',
   interested:         'success',
   not_interested:     'neutral',
-  payment_pending:    'warning',
-  payment_completed:  'success',
   converted:          'success',
-  lost:               'danger',
   closed:             'neutral',
-  call_back_later:    'warning',
-  invalid_number:     'danger',
-  no_response:        'warning',
-  followup_closed:    'neutral',
+};
+
+// Normalise the raw followup status (which may be a legacy enum value
+// like 'payment_pending' for older rows) into one of the 5 simplified
+// labels the UI surfaces. Anything that isn't a real outcome the
+// employee has recorded falls back to 'new'.
+const REAL_OUTCOMES = ['contacted', 'interested', 'not_interested', 'converted', 'closed'];
+function displayStatus(raw) {
+  if (raw && REAL_OUTCOMES.includes(raw)) return raw;
+  return 'new';
+}
+
+// Human-readable label for a normalised status. Uses the simplified
+// vocabulary the user signed off on (Follow-up In Progress, etc.).
+const STATUS_LABEL = {
+  new:            'New',
+  contacted:      'Follow-up In Progress',
+  interested:     'Interested',
+  not_interested: 'Not Interested',
+  converted:      'Converted',
+  closed:         'Closed',
 };
 
 const DEFAULT_LIMIT = 20;
@@ -237,7 +250,10 @@ export default function EmployeeLeads() {
 
             {!loading && !error && items.map((lead, idx) => {
               const fu = lead.followup;
-              const status = fu?.status || 'new';
+              // Normalise the raw status so stale legacy values
+              // (payment_pending etc.) render as the simplified
+              // labels the rest of the module uses.
+              const status = displayStatus(fu?.status);
               return (
                 <Tr
                   key={lead.id}
@@ -260,7 +276,7 @@ export default function EmployeeLeads() {
                   <Td className="text-slate-600">{lead.phone || '—'}</Td>
                   <Td>
                     <Badge variant={STATUS_BADGE_VARIANT[status] ?? 'neutral'}>
-                      {status.replace(/_/g, ' ')}
+                      {STATUS_LABEL[status] ?? status.replace(/_/g, ' ')}
                     </Badge>
                   </Td>
                   <Td className={`text-xs ${dueClass(fu?.next_followup_date)}`}>

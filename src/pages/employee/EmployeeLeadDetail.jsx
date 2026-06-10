@@ -31,6 +31,13 @@ const STATUS_OPTIONS = [
   { value: 'closed',             label: 'Closed'                },
 ];
 
+// The 5 statuses an employee can actually record. Used to detect stale
+// legacy values on existing followup rows (payment_pending, new,
+// followup_scheduled, call_back_later, invalid_number, no_response) so
+// the UI can present them as "not yet recorded" rather than leaking the
+// raw DB value to the user.
+const REAL_OUTCOMES = ['contacted', 'interested', 'not_interested', 'converted', 'closed'];
+
 const STATUS_BADGE_VARIANT = {
   new:                'info',
   contacted:          'info',
@@ -95,10 +102,16 @@ export default function EmployeeLeadDetail() {
   const enrollment = data?.enrollment ?? null;
   const followup   = data?.followup   ?? null;
 
-  // The status select shows the current followup's status. When there's
-  // no followup yet (untouched lead), we default to 'contacted' since
-  // the employee is here precisely to record the first follow-up.
-  const currentStatus = followup?.status || 'contacted';
+  // Raw followup status from the API (may be a stale legacy value like
+  // 'payment_pending' for older / admin-created rows).
+  const rawStatus = followup?.status || null;
+  // Has the lead reached one of the 5 outcomes the employee can record?
+  // When false, the lead is effectively "not yet recorded" - the UI
+  // hides the Current badge and the dropdown defaults to the natural
+  // first action (Follow-up In Progress).
+  const hasRealOutcome = Boolean(rawStatus && REAL_OUTCOMES.includes(rawStatus));
+  // What the form's Status dropdown pre-selects.
+  const currentStatus = hasRealOutcome ? rawStatus : 'contacted';
 
   // ── Add note form state ─────────────────────────────────────────────
   const [noteBody, setNoteBody] = useState('');
@@ -371,12 +384,18 @@ export default function EmployeeLeadDetail() {
                 hint="Leave blank to clear the schedule."
               />
               <div className="flex items-center justify-between">
-                <span className="text-[11px] text-slate-400">
-                  Current:&nbsp;
-                  <Badge variant={STATUS_BADGE_VARIANT[currentStatus] ?? 'neutral'}>
-                    {currentStatus.replace(/_/g, ' ')}
-                  </Badge>
-                </span>
+                {hasRealOutcome ? (
+                  <span className="text-[11px] text-slate-400">
+                    Current:&nbsp;
+                    <Badge variant={STATUS_BADGE_VARIANT[currentStatus] ?? 'neutral'}>
+                      {currentStatus.replace(/_/g, ' ')}
+                    </Badge>
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-slate-400 italic">
+                    No follow-up recorded yet
+                  </span>
+                )}
                 <Button type="submit" variant="primary" loading={savingStatus}>
                   Save
                 </Button>

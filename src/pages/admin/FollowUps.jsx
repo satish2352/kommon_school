@@ -281,17 +281,24 @@ export default function FollowUps() {
                   </Badge>
                 </Td>
                 <Td>
-                  {/* Reassign select — writes to the underlying enrollment's
-                      assigned_to via the assignment API. Visible to admins
-                      only; permission gate enforced server-side. */}
+                  {/* Reassign select. UX rule: once a lead has an
+                      assignee, admin can REASSIGN to another employee
+                      but cannot unassign. The "Unassigned" option only
+                      appears for currently-unassigned rows.
+                      Tooltip explains the behaviour on hover. */}
                   <select
                     value={f.assignedTo ?? ''}
                     disabled={reassigningIds.has(f.id) || employees.length === 0}
                     onChange={(ev) => handleReassign(f, ev.target.value || null)}
                     className="text-xs border border-slate-200 bg-white rounded px-1.5 py-1 max-w-[160px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                    title={f.assignee?.email || 'Unassigned'}
+                    title={
+                      f.assignedTo
+                        ? `Currently assigned to ${f.assignee?.email || 'unknown'}. Pick another employee to reassign.`
+                        : 'Pick an employee to assign this lead.'
+                    }
                   >
-                    <option value="">Unassigned</option>
+                    {/* Unassigned option ONLY for currently-unassigned rows. */}
+                    {!f.assignedTo && <option value="">Unassigned</option>}
                     {employees.map((emp) => (
                       <option key={emp.id} value={emp.id}>{emp.email}</option>
                     ))}

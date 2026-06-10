@@ -712,17 +712,23 @@ export default function Enrollments() {
                     )}
                   </Td>
                   <Td>
-                    {/* Per-row assign control. Reads the row's current
-                        assignee from the backend response; writes via
-                        PATCH /admin/enrollments/:id/assign on change. */}
+                    {/* Per-row assign control. UX rule: once a lead is
+                        assigned, the "Unassigned" option disappears -
+                        admin can REASSIGN to another employee but not
+                        revert to unassigned. Tooltip explains on hover. */}
                     <select
                       value={e.assignedTo ?? ''}
                       disabled={assigningIds.has(e.id) || employees.length === 0}
                       onChange={(ev) => handleAssign(e.id, ev.target.value || null)}
                       className="text-xs border border-slate-200 bg-white rounded px-1.5 py-1 max-w-[160px] focus:outline-none focus:ring-2 focus:ring-indigo-200"
-                      title={e.assignee?.email || 'Unassigned'}
+                      title={
+                        e.assignedTo
+                          ? `Currently assigned to ${e.assignee?.email || 'unknown'}. Pick another employee to reassign.`
+                          : 'Pick an employee to assign this lead.'
+                      }
                     >
-                      <option value="">Unassigned</option>
+                      {/* Unassigned only when currently unassigned. */}
+                      {!e.assignedTo && <option value="">Unassigned</option>}
                       {employees.map((emp) => (
                         <option key={emp.id} value={emp.id}>{emp.email}</option>
                       ))}

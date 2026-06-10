@@ -29,6 +29,9 @@ function Tile({ label, value, tone = 'slate', hint, to }) {
     amber:   { bg: 'bg-amber-50/60 border-amber-200',     accent: 'text-amber-700' },
     emerald: { bg: 'bg-emerald-50/60 border-emerald-200', accent: 'text-emerald-700' },
     rose:    { bg: 'bg-rose-50/60 border-rose-200',       accent: 'text-rose-700' },
+    // Reserved for the Converted tile so it reads as a distinct, terminal
+    // positive outcome — Interested already takes emerald.
+    violet:  { bg: 'bg-violet-50/60 border-violet-200',   accent: 'text-violet-700' },
   };
   const t = toneClasses[tone] || toneClasses.slate;
   const inner = (
@@ -99,11 +102,11 @@ export default function EmployeeDashboard() {
           a link to the Leads page with the matching followupStatus query
           so clicking drills straight into the filtered list.
           --------------------------------------------------------- */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {loading ? (
           <>
             <TileSkeleton /><TileSkeleton /><TileSkeleton />
-            <TileSkeleton /><TileSkeleton />
+            <TileSkeleton /><TileSkeleton /><TileSkeleton />
           </>
         ) : (
           <>
@@ -127,6 +130,13 @@ export default function EmployeeDashboard() {
               tone="emerald"
               hint="Showing interest"
               to="/employee/leads?followupStatus=interested"
+            />
+            <Tile
+              label="Converted"
+              value={m.converted ?? 0}
+              tone="violet"
+              hint="Closed-won"
+              to="/employee/leads?followupStatus=converted"
             />
             <Tile
               label="Not interested"
@@ -175,7 +185,7 @@ export default function EmployeeDashboard() {
 
         {/* Recent activity */}
         <div className="lg:col-span-2">
-          <Card title="Recent activity" subtitle="Your last 10 follow-up notes.">
+          <Card title="Recent activity" subtitle="Your last 5 follow-up notes.">
             {loading ? (
               <div className="space-y-3">
                 <Skeleton w="w-full" />
@@ -188,7 +198,7 @@ export default function EmployeeDashboard() {
               </div>
             ) : (
               <ul className="divide-y divide-slate-100">
-                {ra.map((entry) => (
+                {ra.slice(0, 5).map((entry) => (
                   <li key={entry.id} className="py-3 first:pt-0 last:pb-0">
                     <div className="flex items-start justify-between gap-3 mb-1">
                       <div className="flex items-center gap-2 min-w-0">

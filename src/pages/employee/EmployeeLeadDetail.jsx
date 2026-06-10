@@ -113,6 +113,17 @@ export default function EmployeeLeadDetail() {
   // What the form's Status dropdown pre-selects.
   const currentStatus = hasRealOutcome ? rawStatus : 'contacted';
 
+  // Terminal states — once the lead is here, the whole detail page goes
+  // read-only. Backend enforces the same set in followup.service.js so
+  // the API rejects any change attempt even if the UI is bypassed.
+  const TERMINAL_STATUSES = ['converted', 'closed', 'payment_completed', 'followup_closed'];
+  const isTerminal = Boolean(rawStatus && TERMINAL_STATUSES.includes(rawStatus));
+  const terminalLabel =
+    rawStatus === 'converted' ? 'Converted'
+    : rawStatus === 'closed' || rawStatus === 'followup_closed' ? 'Closed'
+    : rawStatus === 'payment_completed' ? 'Payment completed'
+    : null;
+
   // ── Add note form state ─────────────────────────────────────────────
   const [noteBody, setNoteBody] = useState('');
   const [addingNote, setAddingNote] = useState(false);
@@ -151,22 +162,27 @@ export default function EmployeeLeadDetail() {
 
   useEffect(() => {
     setStatusDraft(currentStatus);
-    setScheduleDraft(toLocalDateTimeInput(followup?.next_followup_date));
-  }, [currentStatus, followup?.next_followup_date]);
+    // Leave the date input empty on load. The currently-saved schedule is
+    // shown as info text below the input — the field is exclusively for
+    // entering a NEW reschedule date. This way, pressing Save without
+    // touching the date can never accidentally wipe the existing schedule.
+    setScheduleDraft('');
+  }, [currentStatus]);
 
   const submitStatus = async (e) => {
     e?.preventDefault?.();
-    // Convert local datetime-input back to an ISO string. Empty = clear.
-    const nextFollowupDate = scheduleDraft
-      ? new Date(scheduleDraft).toISOString()
-      : null;
     setSavingStatus(true);
     try {
-      await employeeLeadService.updateStatus(enrollmentId, {
-        status:           statusDraft,
-        nextFollowupDate,
-      });
+      // Only send nextFollowupDate when the employee actually typed a new
+      // value. Empty input means "preserve existing schedule" — use the
+      // explicit Clear link to remove it.
+      const payload = { status: statusDraft };
+      if (scheduleDraft) {
+        payload.nextFollowupDate = new Date(scheduleDraft).toISOString();
+      }
+      await employeeLeadService.updateStatus(enrollmentId, payload);
       toast.success('Lead updated');
+      setScheduleDraft('');
       refetch();
     } catch (err) {
       toast.error(err?.message || 'Failed to update lead');
@@ -243,6 +259,18 @@ export default function EmployeeLeadDetail() {
     enrollment.plan ||
     '—';
 
+  // The lead is in follow-up precisely because the student hasn't picked a
+  // plan or paid yet. If we have nothing meaningful to show in Plan &
+  // Payment, hide the entire card so the employee isn't distracted by an
+  // empty "—" panel.
+  const hasPlanOrPayment = Boolean(
+    enrollment.internal_plan ||
+    enrollment.plan_pricing?.plan ||
+    (enrollment.plan && enrollment.plan !== '—') ||
+    Number(enrollment.amount_paid_paise) > 0 ||
+    (Array.isArray(enrollment.payments) && enrollment.payments.length > 0)
+  );
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -281,7 +309,10 @@ export default function EmployeeLeadDetail() {
             </dl>
           </Card>
 
-          {/* Plan + financials */}
+          {/* Plan + financials — only when the student has actually picked a
+              plan or made a payment. Otherwise the lead is still in follow-up
+              with nothing to display here, so we omit the card entirely. */}
+          {hasPlanOrPayment && (
           <Card title="Plan & Payment">
             <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4 text-sm">
               <div>
@@ -324,6 +355,7 @@ export default function EmployeeLeadDetail() {
               </div>
             )}
           </Card>
+          )}
 
           {/* Activity / timeline */}
           <Card title="Activity">
@@ -366,11 +398,18 @@ export default function EmployeeLeadDetail() {
 
           {/* Status + schedule */}
           <Card title="Status & Schedule">
+            {isTerminal && (
+              <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                This lead is marked <span className="font-semibold">{terminalLabel}</span>.
+                Status, schedule, and follow-up notes are locked.
+              </div>
+            )}
             <form onSubmit={submitStatus} className="space-y-4">
               <Select
                 label="Status"
                 value={statusDraft}
                 onChange={(e) => setStatusDraft(e.target.value)}
+                disabled={isTerminal}
               >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s.value} value={s.value}>{s.label}</option>
@@ -381,8 +420,26 @@ export default function EmployeeLeadDetail() {
                 type="datetime-local"
                 value={scheduleDraft}
                 onChange={(e) => setScheduleDraft(e.target.value)}
-                hint="Leave blank to clear the schedule."
+                disabled={isTerminal}
+                hint="Pick a date to (re)schedule the next call. Leave blank to keep the current schedule."
               />
+              {/* Saved schedule readout. Always visible so the employee knows
+                  what's on the calendar without having to guess from the
+                  empty input. */}
+              <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs">
+                {followup?.next_followup_date ? (
+                  <span className="text-slate-600">
+                    Currently scheduled:&nbsp;
+                    <span className="font-semibold text-slate-900">
+                      {formatDateTime(followup.next_followup_date)}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-slate-400 italic">
+                    No follow-up scheduled.
+                  </span>
+                )}
+              </div>
               <div className="flex items-center justify-between">
                 {hasRealOutcome ? (
                   <span className="text-[11px] text-slate-400">
@@ -396,14 +453,18 @@ export default function EmployeeLeadDetail() {
                     No follow-up recorded yet
                   </span>
                 )}
-                <Button type="submit" variant="primary" loading={savingStatus}>
+                <Button type="submit" variant="primary" loading={savingStatus} disabled={isTerminal}>
                   Save
                 </Button>
               </div>
             </form>
           </Card>
 
-          {/* Record follow-up — single textarea, no kind chips. */}
+          {/* Record follow-up — single textarea, no kind chips. Hidden
+              entirely on terminal leads; the status panel already explains
+              why everything is locked, so a second disabled card would
+              just be noise. */}
+          {!isTerminal && (
           <Card title="Record Follow-up" subtitle="What was discussed?">
             <form onSubmit={submitNote} className="space-y-3">
               <Textarea
@@ -422,6 +483,7 @@ export default function EmployeeLeadDetail() {
               </div>
             </form>
           </Card>
+          )}
         </div>
       </div>
     </div>

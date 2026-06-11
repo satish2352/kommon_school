@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useBranding } from '../context/BrandingContext'
 import ContactTabs from '../components/common/ContactTabs'
+import { contactService } from '../services/contactService'
 
 const stats = [
   { value: '10K+',  label: 'Students Trained',  bg: 'bg-blue-50',    color: 'text-blue-600'   },
@@ -15,30 +16,63 @@ const nextSteps = [
   { num: '03', title: 'Get Started',          desc: 'Get instant access and start your first AI mock interview session.' },
 ]
 
+const MESSAGE_MAX = 1000
+const MESSAGE_MIN = 10
+// 10-digit Indian mobile starting 6-9 — same rule used across the platform.
+const PHONE_REGEX = /^[6-9]\d{9}$/
+
 export default function Contact() {
   const { brandName } = useBranding()
   const [form, setForm]         = useState({ name: '', email: '', phone: '', message: '' })
   const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
   const [errors, setErrors]     = useState({})
 
   const validate = () => {
     const errs = {}
     if (!form.name.trim()) errs.name = 'Name is required'
     if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = 'Valid email is required'
-    if (!form.message.trim()) errs.message = 'Message is required'
+
+    const phone = form.phone.trim()
+    if (!phone) errs.phone = 'Phone is required'
+    else if (!PHONE_REGEX.test(phone)) errs.phone = 'Enter a valid 10-digit mobile number starting with 6-9'
+
+    const msg = form.message.trim()
+    if (!msg) errs.message = 'Message is required'
+    else if (msg.length < MESSAGE_MIN) errs.message = `Message must be at least ${MESSAGE_MIN} characters`
+    else if (msg.length > MESSAGE_MAX) errs.message = `Message must be at most ${MESSAGE_MAX} characters`
+
     return errs
   }
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value })
-    setErrors({ ...errors, [e.target.name]: '' })
+    const { name, value } = e.target
+    // Phone: keep digits only, capped at 10. Message: hard-cap at the limit.
+    let v = value
+    if (name === 'phone') v = value.replace(/\D/g, '').slice(0, 10)
+    else if (name === 'message') v = value.slice(0, MESSAGE_MAX)
+    setForm({ ...form, [name]: v })
+    setErrors({ ...errors, [name]: '' })
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     const errs = validate()
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
-    setSubmitted(true)
+    setSubmitting(true)
+    try {
+      await contactService.submit({
+        name:    form.name.trim(),
+        email:   form.email.trim(),
+        phone:   form.phone.trim(),
+        message: form.message.trim(),
+      })
+      setSubmitted(true)
+    } catch (err) {
+      setErrors({ submit: err?.message || 'Something went wrong. Please try again.' })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const inp  = 'w-full px-4 py-3 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-colors'
@@ -132,12 +166,16 @@ export default function Contact() {
                       {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">Phone</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                        Phone <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="tel" name="phone" value={form.phone} onChange={handleChange}
-                        placeholder="+91 98765 43210"
-                        className={inpOk}
+                        inputMode="numeric" maxLength={10}
+                        placeholder="9876543210"
+                        className={errors.phone ? inpErr : inpOk}
                       />
+                      {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                     </div>
                   </div>
 
@@ -148,17 +186,29 @@ export default function Contact() {
                     </label>
                     <textarea
                       name="message" value={form.message} onChange={handleChange}
+                      maxLength={MESSAGE_MAX}
                       placeholder="Tell us your goal — preparing for interviews, improving communication, landing a specific role..."
                       className={`resize-none flex-1 min-h-[140px] ${errors.message ? inpErr : inpOk}`}
                     />
-                    {errors.message && <p className="text-red-500 text-xs mt-1">{errors.message}</p>}
+                    {/* Validation message (left) + live character count (right). */}
+                    <div className="flex items-start justify-between gap-2 mt-1">
+                      <span className="text-red-500 text-xs">{errors.message || ''}</span>
+                      <span className={`text-xs shrink-0 tabular-nums ${form.message.length >= MESSAGE_MAX ? 'text-red-500 font-medium' : 'text-gray-400'}`}>
+                        {form.message.length}/{MESSAGE_MAX}
+                      </span>
+                    </div>
                   </div>
+
+                  {errors.submit && (
+                    <p className="text-red-500 text-sm text-center">{errors.submit}</p>
+                  )}
 
                   <button
                     type="submit"
-                    className="btn-gradient-cta w-full py-4 rounded-xl text-white font-bold text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 mt-auto"
+                    disabled={submitting}
+                    className="btn-gradient-cta w-full py-4 rounded-xl text-white font-bold text-sm shadow-lg hover:shadow-xl hover:scale-[1.02] transition-all duration-200 mt-auto disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
                   >
-                    Send Message →
+                    {submitting ? 'Sending…' : 'Send Message →'}
                   </button>
                 </form>
               )}

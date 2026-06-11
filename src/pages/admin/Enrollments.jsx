@@ -25,6 +25,17 @@ const DEFAULT_LIMIT = 20;
 const ALLOWED_LIMITS = [10, 20, 50, 100];
 const SEARCH_DEBOUNCE_MS = 350;
 
+/* Format a date as dd-mm-yyyy (date only). */
+function formatDMY(d) {
+  if (!d) return '—';
+  const x = new Date(d);
+  if (Number.isNaN(x.getTime())) return '—';
+  const dd = String(x.getDate()).padStart(2, '0');
+  const mm = String(x.getMonth() + 1).padStart(2, '0');
+  const yyyy = x.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+
 /* ─── Source detection ───────────────────────────────────────────────────────
  *
  * Internal candidates come from the admin manual flow → they carry
@@ -522,11 +533,9 @@ export default function Enrollments() {
             />
           </div>
 
-          {filtersActive && (
-            <Button variant="secondary" size="sm" onClick={resetFilters}>
-              Reset filters
-            </Button>
-          )}
+          <Button variant="secondary" size="sm" onClick={resetFilters} disabled={!filtersActive}>
+            Reset filters
+          </Button>
         </div>
       </Card>
 
@@ -572,7 +581,7 @@ export default function Enrollments() {
             <thead>
               <tr style={{ background: '#F8F9FA', borderBottom: '1px solid var(--admin-border)' }}>
                 {[
-                  { key: 'sr',     label: 'Sr No',         align: 'right' },
+                  { key: 'sr',     label: 'Number',        align: 'right' },
                   { key: 'eid',    label: 'Enrollment ID' },
                   { key: 'name',   label: 'Name' },
                   { key: 'email',  label: 'Email' },
@@ -582,7 +591,7 @@ export default function Enrollments() {
                   { key: 'status', label: 'Status' },
                   { key: 'sync',   label: 'Sync' },
                   { key: 'assignee', label: 'Assignee' },
-                  { key: 'created',label: 'Created' },
+                  { key: 'created',label: 'Created Date' },
                   { key: 'act',    label: '' },
                 ].map((h) => (
                   <Th key={h.key} align={h.align}>{h.label}</Th>
@@ -730,7 +739,7 @@ export default function Enrollments() {
                     </select>
                   </Td>
                   <Td className="text-slate-500 text-xs">
-                    {createdAt ? new Date(createdAt).toLocaleString() : '—'}
+                    {formatDMY(createdAt)}
                   </Td>
                   <Td>
                     <div className="flex items-center gap-2">

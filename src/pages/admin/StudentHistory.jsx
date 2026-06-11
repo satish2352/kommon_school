@@ -110,6 +110,10 @@ export default function StudentHistory() {
   const total = Number(data?.total ?? 0);
   const totalPages = Math.max(1, Number(data?.totalPages ?? 1));
   const studentName = items.find((i) => i.fullName)?.fullName ?? null;
+  // The upgrade link is a public-site flow; admin-managed (INTERNAL) students
+  // shouldn't get it. Treat the student as internal when their most recent
+  // enrollment is INTERNAL. (Items come back newest-first.)
+  const latestIsInternal = (items[0]?.candidateType ?? 'EXTERNAL') === 'INTERNAL';
   // Current plan is resolved server-side independently of the page, so the
   // days-left summary stays correct even when viewing page 2+.
   const activePlan = data?.currentPlan ?? null;
@@ -122,9 +126,11 @@ export default function StudentHistory() {
         subtitle={email}
         action={
           <div className="flex items-center gap-2">
-            <Button variant="primary" onClick={copyUpgradeLink} title={upgradeUrl}>
-              {copied ? '✓ Link copied' : 'Copy upgrade link'}
-            </Button>
+            {!latestIsInternal && (
+              <Button variant="primary" onClick={copyUpgradeLink} title={upgradeUrl}>
+                {copied ? '✓ Link copied' : 'Copy upgrade link'}
+              </Button>
+            )}
             <Button variant="secondary" onClick={() => navigate('/admin/enrollments')}>
               Back to Enrollments
             </Button>

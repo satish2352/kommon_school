@@ -30,6 +30,7 @@ import AdminEnrollmentForm from '../pages/admin/AdminEnrollmentForm'
 import AdminRenewalEnrollment from '../pages/admin/AdminRenewalEnrollment'
 import AdminBulkEnrollment from '../pages/admin/AdminBulkEnrollment'
 import CourseNames from '../pages/admin/CourseNames'
+import ContactMessages from '../pages/admin/ContactMessages'
 import EmailLogs from '../pages/admin/EmailLogs'
 import EmployeesManagement from '../pages/admin/EmployeesManagement'
 import RazorpayConfigs from '../pages/admin/RazorpayConfigs'
@@ -146,6 +147,7 @@ export default function AppRoutes() {
               <Route path="internal-plans/new" element={<InternalPlanForm />} />
               <Route path="internal-plans/:id" element={<InternalPlanForm />} />
               <Route path="course-names" element={<CourseNames />} />
+              <Route path="contact-messages" element={<ContactMessages />} />
               <Route path="email-logs" element={<EmailLogs />} />
               <Route path="razorpay-configs" element={<RazorpayConfigs />} />
               <Route path="employees" element={<EmployeesManagement />} />

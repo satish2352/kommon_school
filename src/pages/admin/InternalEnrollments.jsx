@@ -204,11 +204,9 @@ export default function InternalEnrollments() {
             />
           </div>
 
-          {filtersActive && (
-            <Button variant="secondary" size="sm" onClick={resetFilters}>
-              Reset filters
-            </Button>
-          )}
+          <Button variant="secondary" size="sm" onClick={resetFilters} disabled={!filtersActive}>
+            Reset filters
+          </Button>
         </div>
       </Card>
 

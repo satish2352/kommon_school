@@ -173,6 +173,8 @@ export default function Courses() {
   const handleStatus       = (v) => { setStatusFilter(v); setPage(1); };
   const handleLimit        = (v) => { setLimit(Number(v)); setPage(1); };
   const resetFilters       = () => { setSearchInput(''); setSearch(''); setStatusFilter('ALL'); setPage(1); };
+  // Reset is only meaningful when a filter is actually applied.
+  const filtersActive      = searchInput.trim() !== '' || statusFilter !== 'ALL';
 
   const openAdd = () => {
     setEditCourse(null);
@@ -316,7 +318,7 @@ export default function Courses() {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </Select>
-          <Button variant="secondary" onClick={resetFilters}>Reset</Button>
+          <Button variant="secondary" onClick={resetFilters} disabled={!filtersActive}>Reset</Button>
         </div>
       </Card>
 

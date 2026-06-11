@@ -3,6 +3,7 @@ import { useAdminPayments, useAdminFailedPayments } from '../../hooks/useAdmin';
 import {
   PageHeader,
   Card,
+  Button,
   Badge,
   Table,
   Th,
@@ -51,6 +52,10 @@ export default function Payments() {
 
   const switchTab = (t) => { setTab(t); setPage(1); };
 
+  // Only filter on this page is the All/Failed tab. Reset returns it to default.
+  const filtersActive = tab !== 'all' || page > 1;
+  const resetFilters = () => { setTab('all'); setPage(1); };
+
   return (
     <div className="space-y-6">
       {/* ── Page header ───────────────────────────────────────────────────── */}
@@ -63,7 +68,7 @@ export default function Payments() {
       />
 
       {/* ── Tab filter ────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {[
           { key: 'all', label: 'All' },
           { key: 'failed', label: 'Failed only' },
@@ -81,6 +86,11 @@ export default function Payments() {
             {label}
           </button>
         ))}
+        <div className="ml-auto">
+          <Button variant="secondary" size="sm" onClick={resetFilters} disabled={!filtersActive}>
+            Reset filters
+          </Button>
+        </div>
       </div>
 
       {/* ── Error state ──────────────────────────────────────────────────── */}

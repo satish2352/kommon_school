@@ -162,6 +162,7 @@ const NAV_SECTIONS = [
       // Follow-Up team management — onboard / deactivate / reset password
       // for employees who log into the separate /employee portal.
       { to: '/admin/employees', label: 'Employees', icon: Icon.userPlus },
+      { to: '/admin/contact-messages', label: 'Contact Messages', icon: Icon.mail },
       // Email Log hidden from the admin nav (per request). Route still exists in
       // AppRoutes; uncomment to restore the menu item.
       // { to: '/admin/email-logs', label: 'Email Log', icon: Icon.mail },

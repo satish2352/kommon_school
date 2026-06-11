@@ -235,7 +235,8 @@ export default function InternalPlanForm() {
 
             <Input
               id="internal-plan-id"
-              label="Plan ID* ( From Kommon School Provider)"
+              label="Plan ID ( From Kommon School Provider)"
+              required
               value={form.externalPlanId}
               onChange={(e) => setField('externalPlanId', e.target.value)}
               onBlur={() => handleBlur('externalPlanId')}

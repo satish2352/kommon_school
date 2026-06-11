@@ -177,6 +177,8 @@ export default function InternalPlans() {
     setStatusFilter('ALL');
     setPage(1);
   };
+  // Reset is only meaningful when a filter is actually applied.
+  const filtersActive = searchInput.trim() !== '' || courseFilter !== '' || statusFilter !== 'ALL';
 
   const handleToggleStatus = async (plan) => {
     const newStatus = plan.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
@@ -259,7 +261,7 @@ export default function InternalPlans() {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </Select>
-          <Button variant="secondary" onClick={resetFilters}>Reset</Button>
+          <Button variant="secondary" onClick={resetFilters} disabled={!filtersActive}>Reset</Button>
         </div>
       </Card>
 

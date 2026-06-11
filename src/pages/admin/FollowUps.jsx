@@ -81,10 +81,10 @@ const DEFAULT_PILL_KEY = 'open';
 
 /* ─── Column count ───────────────────────────────────────────────────────── */
 const HEADER_COLS = [
-  'Sr No', 'Enrollment', 'Name', 'Email', 'Phone', 'Status', 'Assignee',
+  'Sr No', 'Enrollment', 'Name', 'Email', 'Phone', 'Type', 'Description', 'Status', 'Assignee',
   'Next follow-up', 'Last contact',
 ];
-const COL_COUNT = HEADER_COLS.length; // 9
+const COL_COUNT = HEADER_COLS.length;
 
 export default function FollowUps() {
   // Pill state — track which preset pill is selected (by its key) rather
@@ -271,6 +271,16 @@ export default function FollowUps() {
                 </Td>
                 <Td className="text-slate-600">
                   {f.enrollment?.phone ?? '—'}
+                </Td>
+                <Td>
+                  <Badge variant={f.type === 'website' ? 'info' : 'neutral'}>
+                    {f.type === 'website' ? 'Website' : 'Enrollment'}
+                  </Badge>
+                </Td>
+                <Td className="text-slate-600 text-sm max-w-[260px]">
+                  {f.description
+                    ? <span className="line-clamp-2" title={f.description}>{f.description}</span>
+                    : <span className="text-slate-300">—</span>}
                 </Td>
                 <Td>
                   <Badge variant={followUpBadgeVariant(f.status)}>

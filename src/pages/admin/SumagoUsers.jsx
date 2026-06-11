@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { webhookAdminService } from '../../services/webhookAdminService';
-import { PageHeader, Card, Button, Input, Pagination } from '../../components/admin';
+import { PageHeader, Card, Button, Input, Pagination, PageLoader } from '../../components/admin';
 
 /**
  * SumagoUsers — admin page for the Sumago Platform Integration users.
@@ -164,6 +164,12 @@ export default function SumagoUsers() {
     return u?.planHistory?.length ?? 0;
   };
 
+  // Reset all filters back to defaults.
+  const resetFilters = () => {
+    setSearchInput('');
+    setPage(1);
+  };
+
   // Header sort-toggle handler. Clicking the same column flips the order;
   // clicking a different column sorts that column DESC.
   const toggleSort = (col) => {
@@ -284,6 +290,7 @@ export default function SumagoUsers() {
                 onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
+            <Button variant="secondary" onClick={resetFilters}>Reset</Button>
             <div className="text-xs text-slate-500 ml-auto">
               {meta.total > 0 && (
                 <>Showing <b>{showingFrom}–{showingTo}</b> of <b>{meta.total}</b></>
@@ -292,7 +299,7 @@ export default function SumagoUsers() {
           </div>
 
           {loading && !data && (
-            <div className="px-3 py-10 text-center text-slate-500 text-sm">Loading users from local mirror…</div>
+            <PageLoader label="Loading users…" minH="min-h-[200px]" />
           )}
 
           <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -300,6 +307,7 @@ export default function SumagoUsers() {
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
+                    <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600">Sr No</th>
                     <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600">User ID</th>
                     <th className="text-left px-3 py-2 text-xs font-semibold text-slate-600">Name</th>
                     <SortHeader
@@ -335,7 +343,7 @@ export default function SumagoUsers() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {users.length === 0 && !loading ? (
-                    <tr><td colSpan={16} className="px-3 py-6 text-center text-slate-400 text-sm">
+                    <tr><td colSpan={17} className="px-3 py-6 text-center text-slate-400 text-sm">
                       {debouncedSearch
                         ? 'No users match the current search.'
                         : 'No users in local mirror yet.'}
@@ -351,6 +359,9 @@ export default function SumagoUsers() {
                         : null;
                       return (
                         <tr key={u.userId ?? u.email ?? i} className={i % 2 === 1 ? 'bg-slate-50/50' : ''}>
+                          <td className="px-3 py-2 text-slate-500 text-sm font-mono">
+                            {(meta.page - 1) * meta.limit + i + 1}
+                          </td>
                           <td className="px-3 py-2 font-mono text-xs text-slate-700">
                             {u.localEnrollmentCode ?? u.userId ?? '—'}
                           </td>

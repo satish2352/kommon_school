@@ -29,6 +29,42 @@ export const adminEnrollmentService = {
   createInternal: (body) => api.post('/admin/enrollments/internal', body),
 
   /**
+   * Check whether an email is already registered (has any existing enrollment).
+   * Reuses the grouped-by-email history endpoint with limit=1 — we only need
+   * the `total` count and a sample row, not the full list.
+   *
+   * @param {string} email
+   * @returns {Promise<{ email, total, items, currentPlan }>}
+   */
+  checkEmail: (email) =>
+    api.get(`/admin/enrollments/by-email?email=${encodeURIComponent(email)}&limit=1`),
+
+  /**
+   * Fetch a single enrollment's full detail (student + internal plan + course
+   * + payments) by its numeric id. Used by the renewal flow to pre-fill from
+   * an existing record.
+   * @param {number|string} id
+   */
+  getById: (id) => api.get(`/admin/enrollments/${id}`),
+
+  /**
+   * Find the most recent enrollment for an email (newest first). Returns the
+   * compact history row plus the total count — used to seed the Renewal flow.
+   * @param {string} email
+   * @returns {Promise<{ total: number, latest: object|null, currentPlan: object|null }>}
+   */
+  findLatestByEmail: async (email) => {
+    const res = await api.get(
+      `/admin/enrollments/by-email?email=${encodeURIComponent(email)}&limit=1`,
+    );
+    return {
+      total:       res?.total ?? 0,
+      latest:      res?.items?.[0] ?? null,
+      currentPlan: res?.currentPlan ?? null,
+    };
+  },
+
+  /**
    * Save Step-1 of the admin "+ New Enrollment" wizard as an unpaid
    * draft so the lead is captured for Follow-Ups even if admin closes
    * the tab before completing Step 3.

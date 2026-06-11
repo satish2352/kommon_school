@@ -16,7 +16,7 @@ import {
   Td,
   Tr,
   Pagination,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 
@@ -45,27 +45,8 @@ function highestPrice(pricings) {
   return Math.max(...active.map((p) => Number(p.finalPrice)));
 }
 
-/* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const COL_COUNT = 7;
-
-function SkeletonRows({ count = 5 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-28" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-14" /></Td>
-          <Td><Skeleton w="w-14" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-        </Tr>
-      ))}
-    </>
-  );
-}
+/* ─── Column count ───────────────────────────────────────────────────────── */
+const COL_COUNT = 8;
 
 /* ─── Icons ──────────────────────────────────────────────────────────────── */
 const ViewIcon = (
@@ -144,6 +125,14 @@ export default function Plans() {
   const handleTier   = (v) => { setTierFilter(v); setPage(1); };
   const handleStatus = (v) => { setStatusFilter(v); setPage(1); };
 
+  const resetFilters = () => {
+    setSearchInput('');
+    setSearch('');
+    setTierFilter('ALL');
+    setStatusFilter('ALL');
+    setPage(1);
+  };
+
   const handleToggleStatus = async (rec) => {
     if (rec.isSystemDefault) return;
     const newStatus = rec.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
@@ -212,6 +201,7 @@ export default function Plans() {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </Select>
+          <Button variant="secondary" onClick={resetFilters}>Reset</Button>
         </div>
       </Card>
 
@@ -227,13 +217,19 @@ export default function Plans() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Name', 'Tier', 'Pricings', 'Lowest Price', 'Highest Price', 'Status', 'Actions'].map((h) => (
+              {['Sr No', 'Name', 'Tier', 'Pricings', 'Lowest Price', 'Highest Price', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COL_COUNT}>
+                  <PageLoader label="Loading plans…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && records.length === 0 && (
               <EmptyState
@@ -256,6 +252,7 @@ export default function Plans() {
               const high = highestPrice(allPricings);
               return (
                 <Tr key={rec.id} striped={idx % 2 === 1}>
+                  <Td className="text-slate-500 text-sm font-mono">{(meta.page - 1) * meta.limit + idx + 1}</Td>
                   <Td className="text-slate-900 font-medium max-w-xs truncate">
                     {rec.name}
                     {isLocked && (

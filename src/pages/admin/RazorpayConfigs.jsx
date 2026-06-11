@@ -14,12 +14,12 @@ import {
   Th,
   Td,
   Tr,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
-const COL_COUNT = 4;
+const COL_COUNT = 5;
 
 function formatDateTime(d) {
   if (!d) return '—';
@@ -52,21 +52,6 @@ const DeleteIcon = (
   </svg>
 );
 
-/* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-function SkeletonRows({ count = 3 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-56" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-32" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-        </Tr>
-      ))}
-    </>
-  );
-}
 
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 export default function RazorpayConfigs() {
@@ -208,13 +193,19 @@ export default function RazorpayConfigs() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Key ID', 'Status', 'Created', 'Actions'].map((h) => (
+              {['Sr No', 'Key ID', 'Status', 'Created', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COL_COUNT}>
+                  <PageLoader label="Loading configurations…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && records.length === 0 && (
               <EmptyState
@@ -233,6 +224,7 @@ export default function RazorpayConfigs() {
               const isActive = !!rec.is_active;
               return (
                 <Tr key={rec.id} striped={idx % 2 === 1}>
+                  <Td className="text-slate-500 text-sm font-mono">{idx + 1}</Td>
                   <Td className="font-mono text-xs text-slate-700">{rec.key_id}</Td>
                   <Td>
                     <Badge variant={isActive ? 'success' : 'neutral'}>

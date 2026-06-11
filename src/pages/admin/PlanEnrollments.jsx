@@ -10,7 +10,7 @@ import {
   Td,
   Tr,
   Pagination,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 import { formatDuration } from '../../utils/formatDuration';
@@ -34,27 +34,8 @@ function StatusBadge({ status }) {
   );
 }
 
-/* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const COL_COUNT = 8;
-
-function SkeletonRows({ count = 6 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-28" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-32" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-        </Tr>
-      ))}
-    </>
-  );
-}
+/* ─── Column count ───────────────────────────────────────────────────────── */
+const COL_COUNT = 9;
 
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 export default function PlanEnrollments() {
@@ -118,13 +99,19 @@ export default function PlanEnrollments() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Enrollment Code', 'Name', 'Email', 'Phone', 'Duration', 'Final Price', 'Status', 'Created'].map((h) => (
+              {['Sr No', 'Enrollment Code', 'Name', 'Email', 'Phone', 'Duration', 'Final Price', 'Status', 'Created'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COL_COUNT}>
+                  <PageLoader label="Loading plan enrollments…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && records.length === 0 && (
               <EmptyState
@@ -149,6 +136,7 @@ export default function PlanEnrollments() {
                 : '—';
               return (
                 <Tr key={rec.id} striped={idx % 2 === 1}>
+                  <Td className="text-slate-500 text-sm font-mono">{(meta.page - 1) * meta.limit + idx + 1}</Td>
                   <Td className="font-mono text-xs text-slate-700">
                     {rec.enrollment_code ?? String(rec.id).slice(0, 8) + '…'}
                   </Td>

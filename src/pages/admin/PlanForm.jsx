@@ -9,6 +9,7 @@ import {
   Input,
   Textarea,
   Select,
+  PageLoader,
 } from '../../components/admin';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
@@ -147,12 +148,12 @@ function computePricingIssues(rows, { requireAll = false } = {}) {
 
 function validateForm(form, isEdit) {
   const e = {};
-  if (!form.name.trim()) e.name = 'Name is required';
-  else if (form.name.trim().length > 100) e.name = 'Name must be at most 100 characters';
+  if (!form.name.trim()) e.name = 'Plan Name is required';
+  else if (form.name.trim().length > 100) e.name = 'Plan Name must be at most 100 characters';
   if (!form.tier) e.tier = 'Tier is required';
-  if (form.tagline && form.tagline.length > 200) e.tagline = 'Tagline must be at most 200 characters';
-  if (form.description && form.description.length > 2000) e.description = 'Description must be at most 2000 characters';
-  if (form.highlightLabel && form.highlightLabel.length > 50) e.highlightLabel = 'Highlight label must be at most 50 characters';
+  if (form.tagline && form.tagline.length > 150) e.tagline = 'Tagline must be at most 150 characters';
+  if (form.description && form.description.length > 500) e.description = 'Description must be at most 500 characters';
+  if (form.highlightLabel && form.highlightLabel.length > 50) e.highlightLabel = 'Highlight Label must be at most 50 characters';
   if (form.sortOrder !== '' && isNaN(Number(form.sortOrder))) {
     e.sortOrder = 'Sort order must be a number';
   }
@@ -188,11 +189,15 @@ export default function PlanForm() {
   const [loading, setLoading]       = useState(isEdit);
   const [planName, setPlanName]     = useState('');
   const [isSystemDefault, setIsSystemDefault] = useState(false);
+  // Backend IDs of already-persisted pricing rows the admin removed from the
+  // matrix. These are deleted on save so they don't reappear on reload.
+  const [deletedPricingIds, setDeletedPricingIds] = useState([]);
 
   /* ── Load existing plan for edit ── */
   useEffect(() => {
     if (!isEdit) return;
     setLoading(true);
+    setDeletedPricingIds([]);
     plansAdminService
       .getById(id)
       .then((plan) => {
@@ -250,8 +255,15 @@ export default function PlanForm() {
   const addPricingRow = () =>
     setForm((prev) => ({ ...prev, pricings: [...prev.pricings, makePricingRow()] }));
 
-  const removePricingRow = (rowKey) =>
+  const removePricingRow = (rowKey) => {
+    // If this row already exists in the backend, remember its ID so save() can
+    // delete it — otherwise it survives server-side and reappears on reload.
+    const removed = form.pricings.find((r) => r._key === rowKey);
+    if (removed?.id != null) {
+      setDeletedPricingIds((ids) => (ids.includes(removed.id) ? ids : [...ids, removed.id]));
+    }
     setForm((prev) => ({ ...prev, pricings: prev.pricings.filter((r) => r._key !== rowKey) }));
+  };
 
   /* ── Features helpers ── */
   const addFeature = () => {
@@ -302,7 +314,14 @@ export default function PlanForm() {
       if (isEdit) {
         // 1. Update plan metadata
         await plansAdminService.update(id, planPayload);
-        // 2. Upsert each pricing row that has a basePrice
+        // 2. Delete pricing rows the admin removed from the matrix. Done before
+        //    the upserts so a removed-then-re-added duration doesn't collide on
+        //    the (plan, duration) upsert key. The backend hard-deletes when the
+        //    row is unreferenced and soft-deactivates when enrollments depend on it.
+        for (const pricingId of deletedPricingIds) {
+          await plansAdminService.deactivatePricing(id, pricingId);
+        }
+        // 3. Upsert each remaining pricing row that has a basePrice
         for (const p of pricingsArray) {
           await plansAdminService.upsertPricing(id, p.durationMonths, p);
         }
@@ -344,7 +363,7 @@ export default function PlanForm() {
       <div className="space-y-6">
         <PageHeader title="Edit Plan" subtitle="Loading..." />
         <Card>
-          <div className="py-16 text-center text-slate-500 text-sm">Loading plan...</div>
+          <PageLoader label="Loading plan…" />
         </Card>
       </div>
     );
@@ -373,6 +392,8 @@ export default function PlanForm() {
               value={form.name}
               onChange={(e) => setField('name', e.target.value)}
               placeholder="e.g. Silver"
+              maxLength={100}
+              showCount
               error={formErrors.name}
             />
 
@@ -393,20 +414,24 @@ export default function PlanForm() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
-              label="Tagline"
+              label="Tagline (Optional)"
               type="text"
               value={form.tagline}
               onChange={(e) => setField('tagline', e.target.value)}
               placeholder="e.g. Get started quickly"
+              maxLength={150}
+              showCount
               error={formErrors.tagline}
             />
             <Input
-              label="Highlight Label"
+              label="Highlight Label (Optional)"
               type="text"
               value={form.highlightLabel}
               onChange={(e) => setField('highlightLabel', e.target.value)}
               placeholder="e.g. Most Popular"
               hint="Shown as a badge on the plan card"
+              maxLength={50}
+              showCount
               error={formErrors.highlightLabel}
             />
           </div>
@@ -434,11 +459,13 @@ export default function PlanForm() {
           </div>
 
           <Textarea
-            label="Description"
+            label="Description (Optional)"
             rows={3}
             value={form.description}
             onChange={(e) => setField('description', e.target.value)}
             placeholder="Describe what this plan includes..."
+            maxLength={500}
+            showCount
             error={formErrors.description}
           />
         </div>

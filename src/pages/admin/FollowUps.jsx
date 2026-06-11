@@ -6,12 +6,13 @@ import {
   PageHeader,
   Card,
   Badge,
+  Button,
   Select,
   Table,
   Th,
   Td,
   Tr,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 
@@ -78,26 +79,12 @@ const STATUS_FILTERS = [
 // (OPEN + ALL) can co-exist without colliding on an empty value.
 const DEFAULT_PILL_KEY = 'open';
 
-/* ─── Skeleton rows ──────────────────────────────────────────────────────── */
+/* ─── Column count ───────────────────────────────────────────────────────── */
 const HEADER_COLS = [
-  'Enrollment', 'Name', 'Email', 'Phone', 'Status', 'Assignee',
+  'Sr No', 'Enrollment', 'Name', 'Email', 'Phone', 'Status', 'Assignee',
   'Next follow-up', 'Last contact',
 ];
-const COL_COUNT = HEADER_COLS.length;
-
-function SkeletonRows({ count = 7 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          {Array.from({ length: COL_COUNT }).map((__, j) => (
-            <Td key={j}><Skeleton w="w-20" /></Td>
-          ))}
-        </Tr>
-      ))}
-    </>
-  );
-}
+const COL_COUNT = HEADER_COLS.length; // 9
 
 export default function FollowUps() {
   // Pill state — track which preset pill is selected (by its key) rather
@@ -145,6 +132,8 @@ export default function FollowUps() {
   const hasNext = items.length === 20;
 
   const switchPill = (key) => { setPillKey(key); setPage(1); };
+
+  const resetFilters = () => { setAssignedTo('ALL'); setPage(1); };
 
   // Load employees for the assignee filter + per-row reassign dropdowns.
   useEffect(() => {
@@ -226,6 +215,7 @@ export default function FollowUps() {
             ))}
           </Select>
         </div>
+        <Button variant="secondary" onClick={resetFilters}>Reset</Button>
       </div>
 
       {/* ── Error state ──────────────────────────────────────────────────── */}
@@ -246,7 +236,13 @@ export default function FollowUps() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COL_COUNT}>
+                  <PageLoader label="Loading follow-ups…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && items.length === 0 && (
               <EmptyState
@@ -263,6 +259,7 @@ export default function FollowUps() {
 
             {!loading && !error && items.map((f, idx) => (
               <Tr key={f.id} striped={idx % 2 === 1}>
+                <Td className="text-slate-500 text-sm font-mono">{(page - 1) * 20 + idx + 1}</Td>
                 <Td className="font-mono text-xs text-slate-500">
                   {f.enrollment?.enrollmentId ?? f.enrollmentId ?? '—'}
                 </Td>

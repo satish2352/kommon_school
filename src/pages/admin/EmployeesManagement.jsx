@@ -13,15 +13,16 @@ import {
   Th,
   Td,
   Tr,
-  Skeleton,
+  PageLoader,
   EmptyState,
+  StatusToggle,
 } from '../../components/admin';
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 350;
-const COLS = ['Email', 'Status', 'Created', 'Actions'];
+const COLS = ['Sr No', 'Email', 'Status', 'Created', 'Actions'];
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
@@ -215,22 +216,6 @@ function ResetPasswordModal({ open, onClose, employee, onReset }) {
   );
 }
 
-/* ─── Skeleton rows ─────────────────────────────────────────────────────── */
-
-function SkeletonRows({ count = 6 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          {COLS.map((_h, j) => (
-            <Td key={j}><Skeleton w="w-24" /></Td>
-          ))}
-        </Tr>
-      ))}
-    </>
-  );
-}
-
 /* ─── Page ──────────────────────────────────────────────────────────────── */
 
 export default function EmployeesManagement() {
@@ -287,6 +272,13 @@ export default function EmployeesManagement() {
   const [resetTarget, setResetTarget]     = useState(null); // employee object or null
   const [busyId, setBusyId]               = useState(null);
 
+  const resetFilters = () => {
+    setSearch('');
+    setDebSearch('');
+    setStatusFilter('active');
+    setPage(1);
+  };
+
   const doDeactivate = async (emp) => {
     if (!window.confirm(`Deactivate ${emp.email}? They will no longer be able to log in.`)) return;
     setBusyId(emp.id);
@@ -315,6 +307,15 @@ export default function EmployeesManagement() {
       toast.error(err?.message || 'Failed to reactivate');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const handleToggleStatus = async (emp) => {
+    const isDeleted = emp.deleted_at != null;
+    if (isDeleted) {
+      await doReactivate(emp);
+    } else {
+      await doDeactivate(emp);
     }
   };
 
@@ -353,6 +354,7 @@ export default function EmployeesManagement() {
               <option value="">All</option>
             </Select>
           </div>
+          <Button variant="secondary" onClick={resetFilters}>Reset</Button>
         </div>
       </Card>
 
@@ -372,7 +374,13 @@ export default function EmployeesManagement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COLS.length}>
+                  <PageLoader label="Loading employees…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && items.length === 0 && (
               <EmptyState
@@ -391,6 +399,7 @@ export default function EmployeesManagement() {
               const isDeleted = emp.deleted_at != null;
               return (
                 <Tr key={emp.id} striped={idx % 2 === 1}>
+                  <Td className="text-slate-500 text-sm font-mono">{(page - 1) * PAGE_SIZE + idx + 1}</Td>
                   <Td className="text-slate-900 font-medium">
                     {emp.email}
                     <div className="font-mono text-[11px] text-slate-400 mt-0.5">
@@ -398,9 +407,11 @@ export default function EmployeesManagement() {
                     </div>
                   </Td>
                   <Td>
-                    {isDeleted
-                      ? <Badge variant="neutral">Deactivated</Badge>
-                      : <Badge variant="success">Active</Badge>}
+                    <StatusToggle
+                      status={isDeleted ? 'INACTIVE' : 'ACTIVE'}
+                      onToggle={() => handleToggleStatus(emp)}
+                      disabled={busyId === emp.id}
+                    />
                   </Td>
                   <Td className="text-slate-500 text-xs">
                     {fmtDateTime(emp.created_at)}
@@ -416,25 +427,6 @@ export default function EmployeesManagement() {
                       >
                         Reset password
                       </button>
-                      {isDeleted ? (
-                        <button
-                          type="button"
-                          onClick={() => doReactivate(emp)}
-                          disabled={busyId === emp.id}
-                          className="px-2.5 py-1 text-xs font-semibold rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors disabled:opacity-50"
-                        >
-                          Activate
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => doDeactivate(emp)}
-                          disabled={busyId === emp.id}
-                          className="px-2.5 py-1 text-xs font-semibold rounded-md border border-red-200 bg-white text-red-700 hover:bg-red-50 transition-colors disabled:opacity-50"
-                        >
-                          Deactivate
-                        </button>
-                      )}
                     </div>
                   </Td>
                 </Tr>

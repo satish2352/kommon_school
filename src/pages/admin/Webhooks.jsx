@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { webhookAdminService } from '../../services/webhookAdminService';
-import { PageHeader, Card, StatCard, Button, Skeleton, Pagination } from '../../components/admin';
+import { PageHeader, Card, StatCard, Button, PageLoader, Pagination } from '../../components/admin';
 
 // ---------------------------------------------------------------------------
 // Dummy samples — used by the "Send test webhook" button so the admin can
@@ -145,7 +145,7 @@ function StatusBadge({ ok, responseStatus }) {
 //         requestHeaders (object), responseStatus, responseBody, errorMessage,
 //         durationMs, ok, promoCode, courseMatched, source, sentAt
 // ---------------------------------------------------------------------------
-function HistoryCard({ entry }) {
+function HistoryCard({ entry, srNo }) {
   const [expanded, setExpanded] = useState(false);
   const payloadStr  = prettyJSON(entry.requestPayload);
   const bodyStr     = entry.responseBody ? prettyJSON(entry.responseBody) : null;
@@ -159,6 +159,10 @@ function HistoryCard({ entry }) {
         onClick={() => setExpanded((v) => !v)}
         className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-slate-50 transition-colors duration-150"
       >
+        {/* Sr No */}
+        {srNo != null && (
+          <span className="shrink-0 text-slate-400 text-xs font-mono w-6 text-right">{srNo}</span>
+        )}
         {/* Status badge */}
         <div className="shrink-0">
           <StatusBadge ok={entry.ok} responseStatus={entry.responseStatus} />
@@ -376,6 +380,11 @@ export default function Webhooks() {
   };
 
   // ── Filter / page handlers ────────────────────────────────────────────────
+  const resetFilters = () => {
+    setStatusFilter('');
+    setPage(1);
+  };
+
   const handleFilterChange = (newStatus) => {
     setStatusFilter(newStatus);
     setPage(1);
@@ -489,7 +498,7 @@ export default function Webhooks() {
       </Card>
 
       {/* ── Status filter pills ───────────────────────────────────────────── */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         {[
           ['', 'All'],
           ['success', 'Successful'],
@@ -509,6 +518,9 @@ export default function Webhooks() {
             {label}
           </button>
         ))}
+        {statusFilter !== '' && (
+          <Button variant="secondary" onClick={resetFilters}>Reset</Button>
+        )}
       </div>
 
       {/* ── Error banner ─────────────────────────────────────────────────── */}
@@ -523,19 +535,7 @@ export default function Webhooks() {
 
       {/* ── Content ──────────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-xl border border-slate-200 p-4">
-              <div className="flex gap-3 items-center">
-                <Skeleton w="w-16" h="h-5" />
-                <Skeleton w="w-12" h="h-5" />
-                <Skeleton w="w-32" h="h-4" />
-                <Skeleton w="w-24" h="h-4" />
-                <Skeleton w="w-16" h="h-4" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <PageLoader label="Loading webhooks…" minH="min-h-[200px]" />
       ) : deliveries.length === 0 ? (
         <Card>
           <div className="py-10 text-center">
@@ -555,8 +555,8 @@ export default function Webhooks() {
       ) : (
         <>
           <div className="space-y-2 pb-2">
-            {deliveries.map((entry) => (
-              <HistoryCard key={entry.id} entry={entry} />
+            {deliveries.map((entry, idx) => (
+              <HistoryCard key={entry.id} entry={entry} srNo={(meta.page - 1) * meta.limit + idx + 1} />
             ))}
           </div>
           {/* Pagination */}

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { emailLogService } from '../../services/emailLogService';
-import { PageHeader, Card, Button, Input, Select, Badge, Table, Th, Td, Tr, EmptyState, Pagination } from '../../components/admin';
+import { PageHeader, Card, Button, Input, Select, Badge, Table, Th, Td, Tr, EmptyState, Pagination, PageLoader } from '../../components/admin';
 
 function useDebouncedValue(value, delay = 350) {
   const [debounced, setDebounced] = useState(value);
@@ -65,6 +65,8 @@ export default function EmailLogs() {
 
   const onSearchChange = (e) => { setSearchInput(e.target.value); setPage(1); };
   const onStatusChange = (e) => { setStatus(e.target.value); setPage(1); };
+
+  const resetFilters = () => { setSearchInput(''); setStatus(''); setPage(1); };
 
   const doResend = async (email) => {
     if (!email) return;
@@ -155,6 +157,7 @@ export default function EmailLogs() {
             <option value="failed">Failed</option>
             <option value="skipped">Skipped</option>
           </Select>
+          <Button variant="secondary" onClick={resetFilters}>Reset</Button>
           <div className="text-xs text-slate-500 ml-auto">
             {meta.total > 0 && (<>Showing <b>{showingFrom}–{showingTo}</b> of <b>{meta.total}</b></>)}
           </div>
@@ -163,6 +166,7 @@ export default function EmailLogs() {
         <Table>
           <thead>
             <tr>
+              <Th>Sr No</Th>
               <Th>Recipient</Th>
               <Th>Status</Th>
               <Th>Trigger</Th>
@@ -173,16 +177,21 @@ export default function EmailLogs() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="px-4 py-12 text-center text-slate-400 text-sm">Loading…</td></tr>
+              <tr>
+                <td colSpan={7}>
+                  <PageLoader label="Loading email logs…" minH="min-h-[200px]" />
+                </td>
+              </tr>
             ) : rows.length === 0 ? (
               <EmptyState
-                colSpan={6}
+                colSpan={7}
                 title="No emails logged yet"
                 description="Onboarding emails appear here as students enroll. You can also resend credentials above."
               />
             ) : (
               rows.map((r, i) => (
                 <Tr key={r.id ?? i} striped={i % 2 === 1}>
+                  <Td className="text-slate-500 text-sm font-mono">{(meta.page - 1) * meta.limit + i + 1}</Td>
                   <Td className="font-medium text-slate-800">{r.to_email}</Td>
                   <Td>
                     <Badge variant={STATUS_VARIANT[r.status] ?? 'neutral'}>{r.status}</Badge>

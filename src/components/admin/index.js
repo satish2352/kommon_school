@@ -13,5 +13,6 @@ export { StatusToggle } from './StatusToggle';
 export { Table, Th, Td, Tr } from './Table';
 export { Pagination } from './Pagination';
 export { Skeleton } from './Skeleton';
+export { Loader, PageLoader, ButtonLoader } from './Loader';
 export { EmptyState } from './EmptyState';
 export { default as EnrollmentDetailsDrawer } from './EnrollmentDetailsDrawer';

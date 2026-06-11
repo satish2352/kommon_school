@@ -8,7 +8,7 @@ import {
   useAdminPayments,
 } from '../../hooks/useAdmin';
 import { useFollowUps } from '../../hooks/useFollowUps';
-import { PageHeader, Card, StatCard, Skeleton } from '../../components/admin';
+import { PageHeader, Card, StatCard, PageLoader } from '../../components/admin';
 
 /* ─── Formatters ────────────────────────────────────────────────────────── */
 const inr = (paise) =>
@@ -58,84 +58,52 @@ const PAYMENT_COLORS = {
   PARTIAL: '#1D4ED8',
 };
 
-/* ─── Skeleton helpers ───────────────────────────────────────────────────── */
-function StatCardSkeleton() {
-  // Mirrors the real StatCard layout:
-  //   - h-full + flex flex-col so the skeleton fills its grid cell
-  //   - label area min-h-[2.6em] matches the real card so the skeleton
-  //     and the loaded card occupy the same vertical box (no layout
-  //     shift when data resolves).
-  return (
-    <div
-      className="bg-white rounded-xl border p-5 shadow-card h-full flex flex-col"
-      style={{ borderColor: 'var(--admin-border, #E5E7EB)' }}
-    >
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1 min-w-0 min-h-[2.6em]">
-          <Skeleton w="w-24" h="h-3" />
-        </div>
-        <Skeleton w="w-10" h="h-10" className="rounded-lg shrink-0" />
-      </div>
-      <div className="mt-auto">
-        <Skeleton w="w-20" h="h-7" className="mt-3" />
-        <Skeleton w="w-24" h="h-3" className="mt-2" />
-      </div>
-    </div>
-  );
-}
-
-function ChartSkeleton() {
-  return (
-    <div className="bg-white rounded-xl border p-5 shadow-card" style={{ borderColor: 'var(--admin-border, #E5E7EB)' }}>
-      <div className="flex items-center justify-between mb-4">
-        <Skeleton w="w-32" h="h-4" />
-        <Skeleton w="w-12" h="h-3" />
-      </div>
-      <Skeleton w="w-full" h="h-[120px]" className="rounded-xl" />
-      <div className="flex justify-between mt-2">
-        <Skeleton w="w-4" h="h-3" />
-        <Skeleton w="w-16" h="h-3" />
-      </div>
-    </div>
-  );
-}
 
 /* ─── Sub-components ─────────────────────────────────────────────────────── */
 
 function MiniBarChart({ data, format = (v) => v, color = '#2563EB', height = 120 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
-  const width = 100;
-  const barW = width / data.length - 2;
+  const slotW = 100 / data.length;     // viewBox width per bar slot
+  const barW = slotW * 0.6;            // bar takes 60% of its slot, centred
   return (
     <div>
+      {/* Bars only. The SVG is stretched horizontally (preserveAspectRatio=none),
+          which is fine for rectangles but would distort any text — so the x-axis
+          labels are rendered as plain HTML below instead. */}
       <svg
-        viewBox={`0 0 ${width} ${height}`}
+        viewBox={`0 0 100 ${height}`}
         preserveAspectRatio="none"
         className="w-full"
         style={{ height }}
       >
         {data.map((d, i) => {
-          const h = (d.value / max) * (height - 22);
-          const x = i * (barW + 2) + 1;
-          const y = height - 18 - h;
+          const h = (d.value / max) * (height - 4);
+          const x = i * slotW + (slotW - barW) / 2;
+          const y = height - h;
           return (
-            <g key={i}>
-              <rect
-                x={x}
-                y={y}
-                width={barW}
-                height={h || 1}
-                rx="1"
-                fill={color}
-                opacity={d.value === 0 ? 0.15 : 0.85}
-              />
-              <text x={x + barW / 2} y={height - 6} textAnchor="middle" fontSize="4" fill="#94a3b8">
-                {d.label}
-              </text>
-            </g>
+            <rect
+              key={i}
+              x={x}
+              y={y}
+              width={barW}
+              height={h || 1}
+              rx="1"
+              fill={color}
+              opacity={d.value === 0 ? 0.15 : 0.85}
+            />
           );
         })}
       </svg>
+
+      {/* X-axis labels — HTML so they stay crisp and readable. */}
+      <div className="flex mt-1.5">
+        {data.map((d, i) => (
+          <span key={i} className="flex-1 text-center text-[11px] text-slate-400">
+            {d.label}
+          </span>
+        ))}
+      </div>
+
       <div className="flex justify-between text-xs text-slate-500 mt-2">
         <span>{format(0)}</span>
         <span className="text-slate-700 font-medium">Peak: {format(max)}</span>
@@ -364,11 +332,7 @@ export default function Dashboard() {
 
       {/* ── KPI cards ─────────────────────────────────────────────────────── */}
       {anyLoading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 items-stretch">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-full"><StatCardSkeleton /></div>
-          ))}
-        </div>
+        <PageLoader label="Loading dashboard…" minH="min-h-[400px]" />
       ) : (
         // items-stretch (grid default) makes the rows take the tallest
         // child's height; the per-cell `h-full` on each AOS wrapper is
@@ -455,12 +419,7 @@ export default function Dashboard() {
       )}
 
       {/* ── Trend charts ─────────────────────────────────────────────────── */}
-      {anyLoading ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <ChartSkeleton />
-          <ChartSkeleton />
-        </div>
-      ) : (
+      {!anyLoading && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <Card>
             <div className="flex items-center justify-between mb-4 gap-2">

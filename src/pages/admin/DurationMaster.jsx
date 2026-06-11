@@ -15,7 +15,7 @@ import {
   Td,
   Tr,
   Pagination,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 
@@ -30,11 +30,11 @@ const EMPTY_FORM = {
 function validateForm(f) {
   const e = {};
   if (!f.label.trim()) {
-    e.label = 'Label is required';
+    e.label = 'Duration is required';
   } else if (f.label.trim().length < 1) {
-    e.label = 'Label must be at least 1 character';
+    e.label = 'Duration must be at least 1 character';
   } else if (f.label.trim().length > 50) {
-    e.label = 'Label must be at most 50 characters';
+    e.label = 'Duration must be at most 50 characters';
   }
   const so = Number(f.sortOrder);
   if (f.sortOrder !== '' && (isNaN(so) || !Number.isInteger(so) || so < 0 || so > 9999)) {
@@ -43,23 +43,8 @@ function validateForm(f) {
   return e;
 }
 
-/* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const COL_COUNT = 4;
-
-function SkeletonRows({ count = 6 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-14" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-        </Tr>
-      ))}
-    </>
-  );
-}
+/* ─── Column count ───────────────────────────────────────────────────────── */
+const COL_COUNT = 5;
 
 /* ─── Icon constants ─────────────────────────────────────────────────────── */
 const EditIcon = (
@@ -128,6 +113,7 @@ export default function DurationMaster() {
   const handleSearchChange = (v) => { setSearchInput(v); };
   const handleStatus       = (v) => { setStatusFilter(v); setPage(1); };
   const handleLimit        = (v) => { setLimit(Number(v)); setPage(1); };
+  const resetFilters       = () => { setSearchInput(''); setSearch(''); setStatusFilter('ALL'); setPage(1); };
 
   const openAdd = () => {
     setEditRecord(null);
@@ -259,6 +245,7 @@ export default function DurationMaster() {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </Select>
+          <Button variant="secondary" onClick={resetFilters}>Reset</Button>
         </div>
       </Card>
 
@@ -274,13 +261,19 @@ export default function DurationMaster() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Label', 'Sort Order', 'Status', 'Actions'].map((h) => (
+              {['Sr No', 'Duration', 'Sort Order', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COL_COUNT}>
+                  <PageLoader label="Loading durations…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && records.length === 0 && (
               <EmptyState
@@ -299,6 +292,9 @@ export default function DurationMaster() {
               const isLocked = !!rec.isSystemDefault;
               return (
                 <Tr key={rec.id} striped={idx % 2 === 1}>
+                  <Td className="text-slate-500 text-sm font-mono">
+                    {(meta.page - 1) * meta.limit + idx + 1}
+                  </Td>
                   <Td className="text-slate-900 font-medium">
                     {rec.label}
                     {isLocked && (
@@ -371,13 +367,15 @@ export default function DurationMaster() {
       >
         <div className="space-y-4">
           <Input
-            label="Label"
+            label="Duration"
             required
             type="text"
             value={form.label}
             onChange={(e) => setField('label', e.target.value)}
             onBlur={() => handleBlur('label')}
             placeholder="e.g. 6 Months"
+            maxLength={50}
+            showCount
             error={formErrors.label}
           />
 

@@ -27,6 +27,7 @@ import PlanEnrollments from '../pages/admin/PlanEnrollments'
 import InternalPlans from '../pages/admin/InternalPlans'
 import InternalPlanForm from '../pages/admin/InternalPlanForm'
 import AdminEnrollmentForm from '../pages/admin/AdminEnrollmentForm'
+import AdminRenewalEnrollment from '../pages/admin/AdminRenewalEnrollment'
 import AdminBulkEnrollment from '../pages/admin/AdminBulkEnrollment'
 import CourseNames from '../pages/admin/CourseNames'
 import EmailLogs from '../pages/admin/EmailLogs'
@@ -128,6 +129,7 @@ export default function AppRoutes() {
               <Route path="internal-enrollments" element={<InternalEnrollments />} />
               <Route path="external-enrollments" element={<ExternalEnrollments />} />
               <Route path="enrollments/new" element={<AdminEnrollmentForm />} />
+              <Route path="enrollments/renew" element={<AdminRenewalEnrollment />} />
               <Route path="enrollments/bulk" element={<AdminBulkEnrollment />} />
               <Route path="payments" element={<Payments />} />
               <Route path="follow-ups" element={<FollowUps />} />

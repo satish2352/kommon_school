@@ -18,7 +18,7 @@ import {
   Td,
   Tr,
   Pagination,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 
@@ -31,6 +31,23 @@ const formatFee = (fee) =>
         maximumFractionDigits: 2,
       })}`
     : '—';
+
+const formatDateTime = (d) =>
+  d
+    ? new Date(d).toLocaleString('en-IN', {
+        day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      })
+    : '—';
+
+/* ─── Read-only detail field (used by the view modal) ─────────────────────── */
+function Detail({ label, children }) {
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</dt>
+      <dd className="mt-1 text-sm text-slate-800 break-words">{children ?? '—'}</dd>
+    </div>
+  );
+}
 
 const EMPTY_FORM = {
   courseNameId: '',
@@ -47,34 +64,17 @@ function validateForm(f) {
   }
   if (f.courseFee === '' || f.courseFee === null || f.courseFee === undefined) {
     e.courseFee = 'Course fee is required';
-  } else if (isNaN(Number(f.courseFee)) || Number(f.courseFee) < 0) {
-    e.courseFee = 'Course fee must be a positive number';
+  } else if (isNaN(Number(f.courseFee)) || Number(f.courseFee) <= 0) {
+    e.courseFee = 'Course fee must be greater than 0';
   } else if (Number(f.courseFee) > 9999999.99) {
     e.courseFee = 'Course fee is too large (max ₹9,999,999.99)';
   }
-  if (f.description && f.description.length > 2000) e.description = 'Description must be at most 2000 characters';
+  if (f.description && f.description.length > 500) e.description = 'Description must be at most 500 characters';
   return e;
 }
 
-/* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const COL_COUNT = 5;
-
-function SkeletonRows({ count = 7 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-48" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-14" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-        </Tr>
-      ))}
-    </>
-  );
-}
+/* ─── Column count ───────────────────────────────────────────────────────── */
+const COL_COUNT = 6;
 
 /* ─── Edit / Delete icons ────────────────────────────────────────────────── */
 const EditIcon = (
@@ -115,6 +115,9 @@ export default function Courses() {
   /* ── Delete confirm state ── */
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting]         = useState(false);
+
+  /* ── View (read-only details) state ── */
+  const [viewCourse, setViewCourse] = useState(null);
 
   /* ── Master dropdown data ── */
   const [durationOptions, setDurationOptions]     = useState([]);
@@ -169,6 +172,7 @@ export default function Courses() {
   const handleSearchChange = (v) => { setSearchInput(v); };
   const handleStatus       = (v) => { setStatusFilter(v); setPage(1); };
   const handleLimit        = (v) => { setLimit(Number(v)); setPage(1); };
+  const resetFilters       = () => { setSearchInput(''); setSearch(''); setStatusFilter('ALL'); setPage(1); };
 
   const openAdd = () => {
     setEditCourse(null);
@@ -312,6 +316,7 @@ export default function Courses() {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </Select>
+          <Button variant="secondary" onClick={resetFilters}>Reset</Button>
         </div>
       </Card>
 
@@ -327,13 +332,19 @@ export default function Courses() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Course Name', 'Course Fee', 'Duration', 'Status', 'Actions'].map((h) => (
+              {['Sr No', 'Course Name', 'Course Fee', 'Duration', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COL_COUNT}>
+                  <PageLoader label="Loading courses…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && courses.length === 0 && (
               <EmptyState
@@ -352,8 +363,18 @@ export default function Courses() {
               const isLocked = !!c.isSystemDefault;
               return (
                 <Tr key={c.id} striped={idx % 2 === 1}>
-                  <Td className="text-slate-900 font-medium max-w-xs truncate">
-                    {c.nameOfCourseAsGroup}
+                  <Td className="text-slate-500 text-sm font-mono">
+                    {(meta.page - 1) * meta.limit + idx + 1}
+                  </Td>
+                  <Td className="max-w-xs">
+                    <button
+                      type="button"
+                      onClick={() => setViewCourse(c)}
+                      className="text-left font-medium text-brand-600 hover:text-brand-800 hover:underline truncate align-middle"
+                      title="View course details"
+                    >
+                      {c.nameOfCourseAsGroup}
+                    </button>
                     {isLocked && (
                       <span className="inline-block px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 ml-1.5 align-middle">
                         System
@@ -464,7 +485,7 @@ export default function Courses() {
             label="Course Fee (₹)"
             required
             type="number"
-            min="0"
+            min="0.01"
             step="0.01"
             value={form.courseFee}
             onChange={(e) => setField('courseFee', e.target.value)}
@@ -494,12 +515,14 @@ export default function Courses() {
           </Select>
 
           <Textarea
-            label="Description"
+            label="Description (Optional)"
             rows={3}
             value={form.description}
             onChange={(e) => setField('description', e.target.value)}
             onBlur={() => handleBlur('description')}
             placeholder="Brief course overview (optional)"
+            maxLength={500}
+            showCount
             error={formErrors.description}
           />
         </div>
@@ -529,6 +552,54 @@ export default function Courses() {
           </span>
           ? This cannot be undone.
         </p>
+      </Modal>
+
+      {/* ── View (read-only) course details modal ────────────────────────── */}
+      <Modal
+        isOpen={!!viewCourse}
+        onClose={() => setViewCourse(null)}
+        title="Course Details"
+        widthClass="max-w-lg"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setViewCourse(null)}>
+              Close
+            </Button>
+            {viewCourse && !viewCourse.isSystemDefault && (
+              <Button
+                variant="primary"
+                onClick={() => { const c = viewCourse; setViewCourse(null); openEdit(c); }}
+              >
+                Edit Course
+              </Button>
+            )}
+          </>
+        }
+      >
+        {viewCourse && (
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+            <Detail label="Course Name">{viewCourse.nameOfCourseAsGroup}</Detail>
+            <Detail label="Course Fee">{formatFee(viewCourse.courseFee)}</Detail>
+            <Detail label="Duration">{viewCourse.duration?.label ?? '—'}</Detail>
+            <Detail label="Status">
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${
+                  viewCourse.status === 'ACTIVE'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {viewCourse.status}
+              </span>
+            </Detail>
+            <Detail label="System Default">{viewCourse.isSystemDefault ? 'Yes' : 'No'}</Detail>
+            <Detail label="Created">{formatDateTime(viewCourse.createdAt)}</Detail>
+            <Detail label="Updated">{formatDateTime(viewCourse.updatedAt)}</Detail>
+            <div className="sm:col-span-2">
+              <Detail label="Description">{viewCourse.description || '—'}</Detail>
+            </div>
+          </dl>
+        )}
       </Modal>
     </div>
   );

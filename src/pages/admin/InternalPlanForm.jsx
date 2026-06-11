@@ -11,6 +11,7 @@ import {
   Textarea,
   Select,
   SearchableSelect,
+  PageLoader,
 } from '../../components/admin';
 
 /* ─── Constants ──────────────────────────────────────────────────────────── */
@@ -43,16 +44,16 @@ function validateForm(form) {
     e.name = 'Plan name is required';
   } else if (name.length < 2) {
     e.name = 'Plan name must be at least 2 characters';
-  } else if (name.length > 200) {
-    e.name = 'Plan name must be at most 200 characters';
+  } else if (name.length > 100) {
+    e.name = 'Plan name must be at most 100 characters';
   }
 
   if (!form.courseId) {
     e.courseId = 'Course is required';
   }
 
-  if (form.description && form.description.length > 2000) {
-    e.description = 'Description must be at most 2000 characters';
+  if (form.description && form.description.length > 500) {
+    e.description = 'Description must be at most 500 characters';
   }
 
   const externalPlanId = (form.externalPlanId || '').trim();
@@ -170,7 +171,7 @@ export default function InternalPlanForm() {
       <div className="space-y-6">
         <PageHeader title="Edit Internal Plan" subtitle="Loading..." />
         <Card>
-          <div className="py-16 text-center text-slate-500 text-sm">Loading plan...</div>
+          <PageLoader label="Loading internal plan…" />
         </Card>
       </div>
     );
@@ -227,6 +228,8 @@ export default function InternalPlanForm() {
               onChange={(e) => setField('name', e.target.value)}
               onBlur={() => handleBlur('name')}
               placeholder="e.g. Data Science — 6 Month Intensive"
+              maxLength={100}
+              showCount
               error={formErrors.name}
             />
 
@@ -238,6 +241,7 @@ export default function InternalPlanForm() {
               onBlur={() => handleBlur('externalPlanId')}
               placeholder="e.g. SUMAGOTEST_SCOPE_30DAYS"
               maxLength={100}
+              showCount
               autoComplete="off"
               spellCheck={false}
               hint="Sent as planId in Sumago webhook. Must be unique."
@@ -306,12 +310,14 @@ export default function InternalPlanForm() {
           </div>
 
           <Textarea
-            label="Description"
+            label="Description (Optional)"
             rows={3}
             value={form.description}
             onChange={(e) => setField('description', e.target.value)}
             onBlur={() => handleBlur('description')}
-            placeholder="Brief plan overview (optional, max 2000 chars)"
+            placeholder="Brief plan overview (optional, max 500 chars)"
+            maxLength={500}
+            showCount
             error={formErrors.description}
           />
         </div>

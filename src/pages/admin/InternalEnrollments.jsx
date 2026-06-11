@@ -28,7 +28,7 @@ import {
   Th,
   Td,
   Tr,
-  Skeleton,
+  PageLoader,
   EmptyState,
   EnrollmentDetailsDrawer,
 } from '../../components/admin';
@@ -59,21 +59,8 @@ function PaymentStatusPill({ status }) {
   );
 }
 
-/* ─── Skeleton rows (8 cols) ──────────────────────────────────────────── */
-const COLS = 8;
-function SkeletonRows({ count = 7 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          {Array.from({ length: COLS }).map((__, j) => (
-            <Td key={j}><Skeleton w="w-24" /></Td>
-          ))}
-        </Tr>
-      ))}
-    </>
-  );
-}
+/* ─── Column count ────────────────────────────────────────────────────── */
+const COLS = 9;
 
 export default function InternalEnrollments() {
   const navigate = useNavigate();
@@ -236,13 +223,19 @@ export default function InternalEnrollments() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Enrollment ID', 'Name', 'Email', 'Phone', 'Type', 'Active Plan', 'Status', 'Created'].map((h) => (
+              {['Sr No', 'Enrollment ID', 'Name', 'Email', 'Phone', 'Type', 'Active Plan', 'Status', 'Created'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COLS}>
+                  <PageLoader label="Loading internal enrollments…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && items.length === 0 && (
               <EmptyState
@@ -268,6 +261,9 @@ export default function InternalEnrollments() {
                   className="cursor-pointer hover:bg-indigo-50/40"
                   onClick={() => setOpenId(e.id)}
                 >
+                  <Td className="text-slate-500 text-sm font-mono">
+                    {(page - 1) * 20 + idx + 1}
+                  </Td>
                   <Td className="font-mono text-xs text-slate-500">
                     {e.enrollmentId ?? e.id}
                   </Td>

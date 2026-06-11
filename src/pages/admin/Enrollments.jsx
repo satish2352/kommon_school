@@ -13,7 +13,8 @@ import {
   Th,
   Td,
   Tr,
-  Skeleton,
+  PageLoader,
+  Loader,
   EmptyState,
   Pagination,
 } from '../../components/admin';
@@ -191,28 +192,8 @@ function DiagRow({ k, v, mono, truncate }) {
   );
 }
 
-/* ─── Skeleton rows ────────────────────────────────────────────────────── */
-const COLS = 11; // Sr. No. + Enrollment ID + Name + Email + Phone + Type + Active Plan + Status + Sync + Created + actions
-function SkeletonRows({ count = 8 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-6"  /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-28" /></Td>
-          <Td><Skeleton w="w-36" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-12" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-        </Tr>
-      ))}
-    </>
-  );
-}
+/* ─── Column count ─────────────────────────────────────────────────────── */
+const COLS = 12; // Sr No + Enrollment ID + Name + Email + Phone + Type + Active Plan + Status + Sync + Assignee + Created + actions
 
 /* ─── URL-query helpers ────────────────────────────────────────────────── */
 /**
@@ -609,7 +590,13 @@ export default function Enrollments() {
               </tr>
             </thead>
             <tbody>
-              {loading && <SkeletonRows count={Math.min(limit, 10)} />}
+              {loading && (
+                <tr>
+                  <td colSpan={COLS}>
+                    <PageLoader label="Loading enrollments…" minH="min-h-[200px]" />
+                  </td>
+                </tr>
+              )}
 
               {!loading && !error && items.length === 0 && (
                 <EmptyState
@@ -766,7 +753,7 @@ export default function Enrollments() {
                           className="px-2.5 py-1 text-xs font-semibold rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           title="Re-queue the external-API sync for this enrollment"
                         >
-                          {isRetrying ? 'Queuing…' : 'Retry sync'}
+                          {isRetrying ? <Loader size="xs" /> : 'Retry sync'}
                         </button>
                       )}
                     </div>

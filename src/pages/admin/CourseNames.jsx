@@ -16,7 +16,7 @@ import {
   Td,
   Tr,
   Pagination,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 
@@ -34,33 +34,17 @@ function validateForm(f) {
     e.name = 'Course name is required';
   } else if (f.name.trim().length < 2) {
     e.name = 'Course name must be at least 2 characters';
-  } else if (f.name.trim().length > 200) {
-    e.name = 'Course name must be at most 200 characters';
+  } else if (f.name.trim().length > 100) {
+    e.name = 'Course name must be at most 100 characters';
   }
-  if (f.description && f.description.length > 2000) {
-    e.description = 'Description must be at most 2000 characters';
+  if (f.description && f.description.length > 500) {
+    e.description = 'Description must be at most 500 characters';
   }
   return e;
 }
 
-/* ─── Skeleton rows ──────────────────────────────────────────────────────── */
+/* ─── Column count ───────────────────────────────────────────────────────── */
 const COL_COUNT = 5;
-
-function SkeletonRows({ count = 6 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-8" /></Td>
-          <Td><Skeleton w="w-64" /></Td>
-          <Td><Skeleton w="w-12" /></Td>
-          <Td><Skeleton w="w-14" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-        </Tr>
-      ))}
-    </>
-  );
-}
 
 /* ─── Icon constants ─────────────────────────────────────────────────────── */
 const EditIcon = (
@@ -129,6 +113,7 @@ export default function CourseNames() {
   const handleSearchChange = (v) => { setSearchInput(v); };
   const handleStatus       = (v) => { setStatusFilter(v); setPage(1); };
   const handleLimit        = (v) => { setLimit(Number(v)); setPage(1); };
+  const resetFilters       = () => { setSearchInput(''); setSearch(''); setStatusFilter('ALL'); setPage(1); };
 
   const openAdd = () => {
     setEditRecord(null);
@@ -264,6 +249,7 @@ export default function CourseNames() {
             <option value="ACTIVE">Active</option>
             <option value="INACTIVE">Inactive</option>
           </Select>
+          <Button variant="secondary" onClick={resetFilters}>Reset</Button>
         </div>
       </Card>
 
@@ -279,13 +265,19 @@ export default function CourseNames() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['ID', 'Name', 'Used in Courses', 'Status', 'Actions'].map((h) => (
+              {['Sr No', 'Name', 'Used in Courses', 'Status', 'Actions'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COL_COUNT}>
+                  <PageLoader label="Loading course names…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && records.length === 0 && (
               <EmptyState
@@ -304,7 +296,9 @@ export default function CourseNames() {
               const isLocked = !!rec.isSystemDefault;
               return (
                 <Tr key={rec.id} striped={idx % 2 === 1}>
-                  <Td className="text-slate-500 text-sm font-mono">{rec.id}</Td>
+                  <Td className="text-slate-500 text-sm font-mono">
+                    {(meta.page - 1) * meta.limit + idx + 1}
+                  </Td>
                   <Td className="text-slate-900 font-medium max-w-xs">
                     {rec.name}
                     {isLocked && (
@@ -392,6 +386,8 @@ export default function CourseNames() {
             onChange={(e) => setField('name', e.target.value)}
             onBlur={() => handleBlur('name')}
             placeholder="e.g. Full Stack Development Using Python"
+            maxLength={100}
+            showCount
             error={formErrors.name}
           />
 
@@ -405,12 +401,14 @@ export default function CourseNames() {
           </Select>
 
           <Textarea
-            label="Description"
+            label="Description (Optional)"
             rows={3}
             value={form.description}
             onChange={(e) => setField('description', e.target.value)}
             onBlur={() => handleBlur('description')}
             placeholder="Brief description (optional)"
+            maxLength={500}
+            showCount
             error={formErrors.description}
           />
         </div>

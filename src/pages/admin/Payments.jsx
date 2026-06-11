@@ -8,7 +8,7 @@ import {
   Th,
   Td,
   Tr,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 
@@ -32,29 +32,9 @@ const inr = (paise) =>
     ? '—'
     : `₹${(paise / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 
-/* ─── Skeleton rows ──────────────────────────────────────────────────────── */
-const HEADER_COLS = ['Enrollment', 'Name', 'Email', 'Phone', 'Razorpay order', 'Razorpay payment', 'Amount', 'Status', 'Created'];
-const COL_COUNT = HEADER_COLS.length;
-
-function SkeletonRows({ count = 7 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-28" /></Td>
-          <Td><Skeleton w="w-36" /></Td>
-          <Td><Skeleton w="w-20" /></Td>
-          <Td><Skeleton w="w-28" /></Td>
-          <Td><Skeleton w="w-28" /></Td>
-          <Td align="right"><Skeleton w="w-16 ml-auto" /></Td>
-          <Td><Skeleton w="w-16" /></Td>
-          <Td><Skeleton w="w-24" /></Td>
-        </Tr>
-      ))}
-    </>
-  );
-}
+/* ─── Column count ───────────────────────────────────────────────────────── */
+const HEADER_COLS = ['Sr No', 'Enrollment', 'Name', 'Email', 'Phone', 'Razorpay order', 'Razorpay payment', 'Amount', 'Status', 'Created'];
+const COL_COUNT = HEADER_COLS.length; // 10
 
 export default function Payments() {
   const [tab, setTab] = useState('all');
@@ -116,12 +96,18 @@ export default function Payments() {
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
               {HEADER_COLS.map((h, i) => (
-                <Th key={h} align={i === 6 ? 'right' : 'left'}>{h}</Th>
+                <Th key={h} align={i === 7 ? 'right' : 'left'}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {active.loading && <SkeletonRows />}
+            {active.loading && (
+              <tr>
+                <td colSpan={COL_COUNT}>
+                  <PageLoader label="Loading payments…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!active.loading && !active.error && items.length === 0 && (
               <EmptyState
@@ -138,6 +124,7 @@ export default function Payments() {
 
             {!active.loading && !active.error && items.map((p, idx) => (
               <Tr key={p.id} striped={idx % 2 === 1}>
+                <Td className="text-slate-500 text-sm font-mono">{(page - 1) * 20 + idx + 1}</Td>
                 <Td className="font-mono text-xs text-slate-500">
                   {p.enrollment?.enrollmentId ?? '—'}
                 </Td>

@@ -21,6 +21,7 @@ import {
   Input,
   Textarea,
   Badge,
+  Loader,
 } from '../../components/admin';
 
 /* ─── Maps matching EnrollModal ─────────────────────────────────────────── */
@@ -368,10 +369,7 @@ function FeeSummaryCard({ feeBreakdown, loading, selectedPlan, coursePrice }) {
       <div className="flex items-center justify-between mb-3">
         <div className="text-xs uppercase tracking-wider text-emerald-700 font-semibold">Fee Summary</div>
         {loading && (
-          <svg className="w-3.5 h-3.5 animate-spin text-emerald-600" fill="none" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.3" strokeWidth="4" />
-            <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z" />
-          </svg>
+          <Loader size="xs" />
         )}
       </div>
 
@@ -406,6 +404,11 @@ export default function AdminEnrollmentForm() {
   // before creating the final paid enrollment).
   const [draftEnrollmentId, setDraftEnrollmentId] = useState(null);
   const [savingDraft, setSavingDraft] = useState(false);
+
+  // Live "email already registered?" check. `status` is one of:
+  //   'idle' | 'checking' | 'exists' | 'new' | 'error'
+  // `count` is how many existing enrollments share this email.
+  const [emailCheck, setEmailCheck] = useState({ status: 'idle', count: 0, currentPlan: null });
 
   /* ── Plan state ── */
   const [courseList, setCourseList]               = useState([]);
@@ -493,6 +496,41 @@ export default function AdminEnrollmentForm() {
       .finally(() => { if (!cancelled) setFeeCalculating(false); });
     return () => { cancelled = true; };
   }, [selectedPlanId, coursePrice]);
+
+  /* ── Live duplicate-email check (debounced) ── */
+  // Whenever the email is a syntactically valid address, ask the backend
+  // whether it already has enrollments and surface the result immediately
+  // below the field. Non-blocking: admins may legitimately create another
+  // enrollment for the same student, so this only warns.
+  useEffect(() => {
+    const email = data.email.trim();
+    // Don't probe the API until the address is well-formed.
+    if (!email || validateEmail(email)) {
+      setEmailCheck({ status: 'idle', count: 0, currentPlan: null });
+      return;
+    }
+
+    let cancelled = false;
+    setEmailCheck((prev) => ({ ...prev, status: 'checking' }));
+    const t = setTimeout(() => {
+      adminEnrollmentService
+        .checkEmail(email)
+        .then((res) => {
+          if (cancelled) return;
+          const count = res?.total ?? 0;
+          setEmailCheck({
+            status: count > 0 ? 'exists' : 'new',
+            count,
+            currentPlan: res?.currentPlan ?? null,
+          });
+        })
+        .catch(() => {
+          if (!cancelled) setEmailCheck({ status: 'error', count: 0, currentPlan: null });
+        });
+    }, 450);
+
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [data.email]);
 
   const set = (key, val) => setData((prev) => ({ ...prev, [key]: val }));
 
@@ -715,6 +753,8 @@ export default function AdminEnrollmentForm() {
                 autoComplete="name"
                 autoCapitalize="words"
                 spellCheck={false}
+                maxLength={100}
+                showCount
                 /* sanitizeName strips anything that isn't a letter or space
                    and collapses consecutive spaces, so the field can never
                    contain digits / symbols even if the user pastes them. */
@@ -726,22 +766,54 @@ export default function AdminEnrollmentForm() {
                 }}
                 error={errors.name}
               />
-              <Input
-                label="Email"
-                required
-                type="email"
-                value={data.email}
-                placeholder="you@email.com"
-                autoComplete="email"
-                inputMode="email"
-                spellCheck={false}
-                maxLength={255}
-                /* sanitizeEmail strips whitespace anywhere (paste from
-                   email clients often appends trailing spaces). The strict
-                   regex (TLD ≥ 2 chars) runs at validation time. */
-                onChange={(e) => { set('email', sanitizeEmail(e.target.value)); setErrors((prev) => ({ ...prev, email: '' })); }}
-                error={errors.email}
-              />
+              <div>
+                <Input
+                  label="Email"
+                  required
+                  type="email"
+                  value={data.email}
+                  placeholder="you@email.com"
+                  autoComplete="email"
+                  inputMode="email"
+                  spellCheck={false}
+                  maxLength={255}
+                  /* sanitizeEmail strips whitespace anywhere (paste from
+                     email clients often appends trailing spaces). The strict
+                     regex (TLD ≥ 2 chars) runs at validation time. */
+                  onChange={(e) => { set('email', sanitizeEmail(e.target.value)); setErrors((prev) => ({ ...prev, email: '' })); }}
+                  error={errors.email}
+                />
+
+                {/* Live duplicate-email feedback (hidden once a format error shows). */}
+                {!errors.email && emailCheck.status === 'checking' && (
+                  <p className="mt-1.5 text-xs text-slate-400 flex items-center gap-1.5">
+                    <Loader size="xs" tone="current" />
+                    Checking if this email is already registered…
+                  </p>
+                )}
+                {!errors.email && emailCheck.status === 'exists' && (
+                  <div className="mt-1.5 flex items-start gap-1.5 text-xs text-amber-700">
+                    <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <span>
+                      This email is already registered — {emailCheck.count} existing enrollment
+                      {emailCheck.count === 1 ? '' : 's'}.
+                      {emailCheck.currentPlan?.planLabel && (
+                        <> Current plan: <span className="font-medium">{emailCheck.currentPlan.planLabel}</span>.</>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {!errors.email && emailCheck.status === 'new' && (
+                  <p className="mt-1.5 text-xs text-emerald-600 flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    No existing enrollment for this email.
+                  </p>
+                )}
+              </div>
             </div>
 
             <Input
@@ -828,14 +900,14 @@ export default function AdminEnrollmentForm() {
             </div>
 
             <Textarea
-              label="Admin Notes"
+              label="Admin Notes (Optional)"
               value={data.notes}
-              placeholder="Optional notes visible only to admins (max 500 chars)"
+              placeholder="Notes visible only to admins"
               rows={3}
               maxLength={500}
+              showCount
               onChange={(e) => { set('notes', e.target.value); setErrors((prev) => ({ ...prev, notes: '' })); }}
               error={errors.notes}
-              hint={`${data.notes.length}/500`}
             />
           </div>
         </Card>

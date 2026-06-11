@@ -10,7 +10,7 @@ import {
   Th,
   Td,
   Tr,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 import { formatDuration } from '../../utils/formatDuration';
@@ -102,11 +102,7 @@ export default function PlanDetails() {
 
       {loading && (
         <Card>
-          <div className="space-y-3">
-            <Skeleton w="w-48" />
-            <Skeleton w="w-64" />
-            <Skeleton w="w-40" />
-          </div>
+          <PageLoader label="Loading plan…" />
         </Card>
       )}
 

@@ -1,9 +1,11 @@
+import { ButtonLoader } from './Loader';
+
 /**
  * Button — admin action button.
  *
  * Variants: primary | secondary | ghost | danger | success
  * Sizes:    sm | md | lg
- * Loading:  shows inline spinner, disables interaction
+ * Loading:  shows inline bouncing-dots loader, disables interaction
  *
  * Prop API is backward-compatible: variant, size, loading, disabled, type, className, children, ...rest
  */
@@ -73,24 +75,7 @@ export function Button({
       style={inlineBorder}
       {...props}
     >
-      {loading && (
-        <svg
-          className="w-3.5 h-3.5 animate-spin shrink-0"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            cx="12" cy="12" r="10"
-            stroke="currentColor"
-            strokeOpacity="0.3"
-            strokeWidth="4"
-          />
-          <path
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.4 0 0 5.4 0 12h4z"
-          />
-        </svg>
-      )}
+      {loading && <ButtonLoader className="shrink-0" />}
       {children}
     </button>
   );

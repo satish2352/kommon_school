@@ -10,7 +10,7 @@ import {
   Th,
   Td,
   Tr,
-  Skeleton,
+  PageLoader,
   EmptyState,
   Pagination,
 } from '../../components/admin';
@@ -63,7 +63,7 @@ function daysLeftMeta(d) {
   return { text: 'text-emerald-600', note: 'Active' };
 }
 
-const COL_COUNT = 8;
+const COL_COUNT = 9;
 
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 export default function StudentHistory() {
@@ -174,22 +174,18 @@ export default function StudentHistory() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Enrollment Code', 'Name', 'Plan', 'Type', 'Amount', 'Status', 'Days Left', 'Created'].map((h) => (
+              {['Sr No', 'Enrollment Code', 'Name', 'Plan', 'Type', 'Amount', 'Status', 'Days Left', 'Created'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading && (
-              <>
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <Tr key={i} striped={i % 2 === 1}>
-                    {Array.from({ length: COL_COUNT }).map((__, j) => (
-                      <Td key={j}><Skeleton w="w-24" /></Td>
-                    ))}
-                  </Tr>
-                ))}
-              </>
+              <tr>
+                <td colSpan={COL_COUNT}>
+                  <PageLoader label="Loading enrollment history…" minH="min-h-[200px]" />
+                </td>
+              </tr>
             )}
 
             {!loading && !error && items.length === 0 && (
@@ -202,6 +198,9 @@ export default function StudentHistory() {
 
             {!loading && !error && items.map((it, idx) => (
               <Tr key={it.id} striped={idx % 2 === 1}>
+                <Td className="text-slate-500 text-sm font-mono">
+                  {(page - 1) * PAGE_SIZE + idx + 1}
+                </Td>
                 <Td className="font-mono text-xs text-slate-700">{it.enrollmentId}</Td>
                 <Td className="text-slate-900 font-medium">{it.fullName || '—'}</Td>
                 <Td className="text-slate-600 text-sm">

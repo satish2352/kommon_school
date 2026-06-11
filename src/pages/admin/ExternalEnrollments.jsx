@@ -23,13 +23,14 @@ import {
   Th,
   Td,
   Tr,
-  Skeleton,
+  PageLoader,
   EmptyState,
 } from '../../components/admin';
 
-const COLS = 8;
+const COLS = 9;
 
 /* ─── Status badge variant map (matches the main Enrollments page) ─────── */
+
 function enrollmentBadgeVariant(status) {
   const map = {
     NEW:       'info',
@@ -39,20 +40,6 @@ function enrollmentBadgeVariant(status) {
     COMPLETED: 'neutral',
   };
   return map[status] ?? 'neutral';
-}
-
-function SkeletonRows({ count = 7 }) {
-  return (
-    <>
-      {Array.from({ length: count }).map((_, i) => (
-        <Tr key={i} striped={i % 2 === 1}>
-          {Array.from({ length: COLS }).map((__, j) => (
-            <Td key={j}><Skeleton w="w-24" /></Td>
-          ))}
-        </Tr>
-      ))}
-    </>
-  );
 }
 
 export default function ExternalEnrollments() {
@@ -148,13 +135,19 @@ export default function ExternalEnrollments() {
         <Table>
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              {['Enrollment ID', 'Name', 'Email', 'Phone', 'Type', 'Active Plan', 'Status', 'Created'].map((h) => (
+              {['Sr No', 'Enrollment ID', 'Name', 'Email', 'Phone', 'Type', 'Active Plan', 'Status', 'Created'].map((h) => (
                 <Th key={h}>{h}</Th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading && <SkeletonRows />}
+            {loading && (
+              <tr>
+                <td colSpan={COLS}>
+                  <PageLoader label="Loading external enrollments…" minH="min-h-[200px]" />
+                </td>
+              </tr>
+            )}
 
             {!loading && !error && items.length === 0 && (
               <EmptyState
@@ -180,6 +173,9 @@ export default function ExternalEnrollments() {
                   className="cursor-pointer hover:bg-indigo-50/40"
                   onClick={() => navigate(`/admin/students/${encodeURIComponent(e.email)}`)}
                 >
+                  <Td className="text-slate-500 text-sm font-mono">
+                    {(page - 1) * 20 + idx + 1}
+                  </Td>
                   <Td className="font-mono text-xs text-slate-500">{e.enrollmentId ?? e.id}</Td>
                   <Td className="text-slate-900 font-medium">
                     <span className="inline-flex items-center gap-2">

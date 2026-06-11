@@ -148,7 +148,10 @@ const NAV_SECTIONS = [
   {
     label: 'Operations',
     items: [
-      { to: '/admin/enrollments', end: true, label: 'Enrollments', icon: Icon.users },
+      // `end` so /enrollments/new and /enrollments/bulk (their own items below)
+      // don't also light up Enrollments. `match` keeps Enrollments highlighted
+      // on the Student History page, which lives under /admin/students.
+      { to: '/admin/enrollments', end: true, match: ['/admin/students'], label: 'Enrollments', icon: Icon.users },
       // Dedicated financial-breakdown view for admin-internal enrollments.
       // Sits alongside the all-enrollments page so the simpler list stays
       // simple and admins can deep-dive on internal-flow pricing here.
@@ -180,8 +183,11 @@ const NAV_SECTIONS = [
           { to: '/admin/course-names', label: 'Course Names', icon: Icon.book },
           { to: '/admin/duration-master', label: 'Duration Master', icon: Icon.clock },
           { to: '/admin/courses', label: 'Courses', icon: Icon.book },
-          { to: '/admin/internal-plans', end: true, label: 'Internal Plans', icon: Icon.fileText },
+          // No `end` so editing/creating (/internal-plans/:id, /internal-plans/new)
+          // keeps Internal Plans highlighted.
+          { to: '/admin/internal-plans', label: 'Internal Plans', icon: Icon.fileText },
           { to: '/admin/enrollments/new', label: 'New Enrollment', icon: Icon.userPlus },
+          { to: '/admin/enrollments/renew', label: 'Renew Enrollment', icon: Icon.clock },
           { to: '/admin/enrollments/bulk', label: 'Bulk Upload (CSV)', icon: Icon.upload },
         ],
       },
@@ -236,6 +242,18 @@ function SubGroupLabel({ children }) {
 
 /* ── Single nav item ────────────────────────────────────── */
 function NavItem({ item, onLinkClick }) {
+  const location = useLocation();
+
+  // Some pages live on routes that don't share the nav item's `to` prefix
+  // (e.g. the Student History page sits under /admin/students but belongs to
+  // the Enrollments item). `item.match` lists extra path prefixes that should
+  // also light up this item.
+  const extraActive =
+    Array.isArray(item.match) &&
+    item.match.some(
+      (p) => location.pathname === p || location.pathname.startsWith(`${p}/`),
+    );
+
   return (
     <NavLink
       to={item.to}
@@ -243,7 +261,7 @@ function NavItem({ item, onLinkClick }) {
       onClick={onLinkClick}
       className={({ isActive }) =>
         `group flex items-center gap-3 px-3 py-2 rounded-md text-[13px] font-medium transition-colors duration-150 admin-nav-item ${
-          isActive ? 'admin-nav-active' : ''
+          isActive || extraActive ? 'admin-nav-active' : ''
         }`
       }
     >

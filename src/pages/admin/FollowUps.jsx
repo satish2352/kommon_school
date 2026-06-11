@@ -277,9 +277,9 @@ export default function FollowUps() {
                     {f.type === 'website' ? 'Website' : 'Enrollment'}
                   </Badge>
                 </Td>
-                <Td className="text-slate-600 text-sm max-w-[260px]">
+                <Td className="text-slate-600 text-sm align-top whitespace-normal w-[260px] max-w-[260px]">
                   {f.description
-                    ? <span className="line-clamp-2" title={f.description}>{f.description}</span>
+                    ? <span className="block line-clamp-2 whitespace-normal break-words" title={f.description}>{f.description}</span>
                     : <span className="text-slate-300">—</span>}
                 </Td>
                 <Td>

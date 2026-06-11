@@ -572,7 +572,7 @@ export default function Enrollments() {
             <thead>
               <tr style={{ background: '#F8F9FA', borderBottom: '1px solid var(--admin-border)' }}>
                 {[
-                  { key: 'sr',     label: '#',             align: 'right' },
+                  { key: 'sr',     label: 'Sr No',         align: 'right' },
                   { key: 'eid',    label: 'Enrollment ID' },
                   { key: 'name',   label: 'Name' },
                   { key: 'email',  label: 'Email' },
